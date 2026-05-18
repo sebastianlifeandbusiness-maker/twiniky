@@ -30,7 +30,7 @@ class AuthService:
         result = await self.db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
 
-        if not user or not verify_password(password, user.hashed_password):
+        if not user or not user.is_active or not verify_password(password, user.hashed_password):
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
         token = create_access_token(subject=str(user.id))
