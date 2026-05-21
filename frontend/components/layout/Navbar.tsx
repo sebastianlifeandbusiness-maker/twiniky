@@ -10,39 +10,82 @@ export function Navbar() {
   const { token, logout } = useAuthStore();
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
-  const handleLogout = () => {
+  function handleLogout() {
     logout();
     router.push("/");
-  };
+  }
 
   return (
-    <header className="border-b">
-      <nav className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="text-xl font-bold tracking-tight">
+    <header
+      style={{
+        borderBottom: "1px solid #ebebeb",
+        backgroundColor: "#fff",
+        position: "sticky",
+        top: 0,
+        zIndex: 30,
+      }}
+    >
+      <nav
+        style={{
+          maxWidth: 1440,
+          margin: "0 auto",
+          padding: "0 32px",
+          height: 56,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <Link
+          href="/"
+          style={{
+            fontSize: 16,
+            fontWeight: 700,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: "#111",
+            textDecoration: "none",
+          }}
+        >
           Twiniky
         </Link>
-        <div className="flex items-center gap-6 text-sm font-medium">
-          <Link href="/marketplace" className="hover:text-gray-500 transition">
-            Marketplace
-          </Link>
-          <Link href="/tryon" className="hover:text-gray-500 transition">
-            Probador 3D
-          </Link>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
+          <NavLink href="/marketplace">Marketplace</NavLink>
+          <NavLink href="/tryon">Probador 3D</NavLink>
+
           {mounted && token ? (
             <button
               onClick={handleLogout}
-              className="rounded-lg border px-4 py-1.5 hover:bg-gray-50 transition"
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                border: "1px solid #ddd",
+                backgroundColor: "transparent",
+                color: "#333",
+                padding: "6px 14px",
+                cursor: "pointer",
+              }}
             >
-              Cerrar sesión
+              Salir
             </button>
           ) : (
             <Link
               href="/login"
-              className="rounded-lg border px-4 py-1.5 hover:bg-gray-50 transition"
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                border: "1px solid #ddd",
+                color: "#333",
+                padding: "6px 14px",
+                textDecoration: "none",
+              }}
             >
               Entrar
             </Link>
@@ -50,5 +93,27 @@ export function Navbar() {
         </div>
       </nav>
     </header>
+  );
+}
+
+function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        fontSize: 11,
+        fontWeight: 500,
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        color: hov ? "#111" : "#888",
+        textDecoration: "none",
+        transition: "color 0.15s",
+      }}
+    >
+      {children}
+    </Link>
   );
 }

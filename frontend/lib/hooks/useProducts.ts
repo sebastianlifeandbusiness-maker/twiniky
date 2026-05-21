@@ -11,3 +11,14 @@ export function useProducts(params?: { category?: string; q?: string }) {
     },
   });
 }
+
+export function useProduct(id: string) {
+  return useQuery<Product>({
+    queryKey: ["product", id],
+    queryFn: async () => {
+      const { data } = await api.get(`/products/${id}`);
+      return data;
+    },
+    enabled: !!id,
+  });
+}

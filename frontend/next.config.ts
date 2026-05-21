@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "*.amazonaws.com" },
       { protocol: "https", hostname: "twiniky-assets.s3.amazonaws.com" },
+      { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
 };
