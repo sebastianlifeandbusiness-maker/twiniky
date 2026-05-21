@@ -4,13 +4,17 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth";
+import { useCartStore, cartCount } from "@/lib/store/cart";
 
 export function Navbar() {
   const router = useRouter();
   const { token, logout } = useAuthStore();
+  const items = useCartStore((s) => s.items);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
+
+  const count = mounted ? cartCount(items) : 0;
 
   function handleLogout() {
     logout();
@@ -56,6 +60,9 @@ export function Navbar() {
           <NavLink href="/marketplace">Marketplace</NavLink>
           <NavLink href="/tryon">Probador 3D</NavLink>
 
+          {/* Cart icon */}
+          <CartIcon count={count} />
+
           {mounted && token ? (
             <button
               onClick={handleLogout}
@@ -93,6 +100,66 @@ export function Navbar() {
         </div>
       </nav>
     </header>
+  );
+}
+
+function CartIcon({ count }: { count: number }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <Link
+      href="/cart"
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        color: hov ? "#111" : "#555",
+        textDecoration: "none",
+        transition: "color 0.15s",
+      }}
+    >
+      {/* Bag SVG */}
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+        <line x1="3" y1="6" x2="21" y2="6" />
+        <path d="M16 10a4 4 0 01-8 0" />
+      </svg>
+
+      {/* Badge */}
+      {count > 0 && (
+        <span
+          style={{
+            position: "absolute",
+            top: -6,
+            right: -8,
+            backgroundColor: "#111",
+            color: "#fff",
+            fontSize: 9,
+            fontWeight: 700,
+            minWidth: 16,
+            height: 16,
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 1,
+            padding: "0 3px",
+          }}
+        >
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </Link>
   );
 }
 

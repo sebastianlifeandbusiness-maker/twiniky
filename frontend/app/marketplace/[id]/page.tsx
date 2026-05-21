@@ -3,6 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useProduct } from "@/lib/hooks/useProducts";
+import { useCartStore } from "@/lib/store/cart";
 import { useRouter } from "next/navigation";
 
 interface Props {
@@ -14,7 +15,16 @@ export default function ProductDetailPage({ params }: Props) {
   const { data: product, isLoading, isError } = useProduct(id);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [activeImg, setActiveImg] = useState(0);
+  const [added, setAdded] = useState(false);
   const router = useRouter();
+  const addItem = useCartStore((s) => s.addItem);
+
+  function handleAddToCart() {
+    if (!product) return;
+    addItem(product, selectedSize);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1800);
+  }
 
   /* ── Loading ── */
   if (isLoading) {
@@ -334,37 +344,11 @@ export default function ProductDetailPage({ params }: Props) {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <TryOnBtn productId={product.id} />
 
-            <button
-              disabled={product.sizes.length > 0 && !selectedSize}
-              style={{
-                width: "100%",
-                padding: "14px 0",
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.2em",
-                textTransform: "uppercase",
-                border: "1px solid #111",
-                backgroundColor: "transparent",
-                color: "#111",
-                cursor: product.sizes.length > 0 && !selectedSize ? "not-allowed" : "pointer",
-                opacity: product.sizes.length > 0 && !selectedSize ? 0.3 : 1,
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                if (!(product.sizes.length > 0 && !selectedSize)) {
-                  (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#111";
-                  (e.currentTarget as HTMLButtonElement).style.color = "#fff";
-                }
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-                (e.currentTarget as HTMLButtonElement).style.color = "#111";
-              }}
-            >
-              {product.sizes.length > 0 && !selectedSize
-                ? "Selecciona una talla"
-                : "Agregar al carrito"}
-            </button>
+            <AddToCartBtn
+              needsSize={product.sizes.length > 0 && !selectedSize}
+              added={added}
+              onClick={handleAddToCart}
+            />
           </div>
 
           {/* Meta */}
@@ -424,6 +408,52 @@ function SizeBtn({
       }}
     >
       {size}
+    </button>
+  );
+}
+
+function AddToCartBtn({
+  needsSize,
+  added,
+  onClick,
+}: {
+  needsSize: boolean;
+  added: boolean;
+  onClick: () => void;
+}) {
+  const [hov, setHov] = useState(false);
+  const disabled = needsSize;
+
+  let label = "Agregar al carrito";
+  if (needsSize) label = "Selecciona una talla";
+  if (added) label = "✓ Añadido al carrito";
+
+  const bg = added ? "#16a34a" : hov && !disabled ? "#111" : "transparent";
+  const color = added || (hov && !disabled) ? "#fff" : "#111";
+  const border = added ? "1px solid #16a34a" : "1px solid #111";
+
+  return (
+    <button
+      disabled={disabled}
+      onClick={onClick}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        width: "100%",
+        padding: "14px 0",
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: "0.2em",
+        textTransform: "uppercase",
+        border,
+        backgroundColor: bg,
+        color,
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.3 : 1,
+        transition: "all 0.2s",
+      }}
+    >
+      {label}
     </button>
   );
 }
