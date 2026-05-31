@@ -2,19 +2,23 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth";
 import { useCartStore, cartCount } from "@/lib/store/cart";
+import { useBrandStore } from "@/lib/store/brand";
 
 export function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const { token, logout } = useAuthStore();
+  const { brand, token: brandToken } = useBrandStore();
   const items = useCartStore((s) => s.items);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
   const count = mounted ? cartCount(items) : 0;
+  const isBrandDashboard = pathname?.startsWith("/brands/dashboard");
 
   function handleLogout() {
     logout();
@@ -59,43 +63,50 @@ export function Navbar() {
         <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
           <NavLink href="/marketplace">Marketplace</NavLink>
           <NavLink href="/tryon">Probador 3D</NavLink>
+          <NavLink href="/brands">Para marcas</NavLink>
 
-          {/* Cart icon */}
-          <CartIcon count={count} />
+          {/* Cart icon — oculto en dashboard de marcas */}
+          {!isBrandDashboard && <CartIcon count={count} />}
 
-          {mounted && token ? (
-            <button
-              onClick={handleLogout}
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                border: "1px solid #ddd",
-                backgroundColor: "transparent",
-                color: "#333",
-                padding: "6px 14px",
-                cursor: "pointer",
-              }}
-            >
-              Salir
-            </button>
-          ) : (
-            <Link
-              href="/login"
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-                border: "1px solid #ddd",
-                color: "#333",
-                padding: "6px 14px",
-                textDecoration: "none",
-              }}
-            >
-              Entrar
-            </Link>
+          {/* Botón de sesión */}
+          {mounted && (
+            isBrandDashboard && brandToken ? (
+              // En dashboard de marca: no mostrar nada, el botón Salir está en el dashboard
+              null
+            ) : token ? (
+              <button
+                onClick={handleLogout}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  border: "1px solid #ddd",
+                  backgroundColor: "transparent",
+                  color: "#333",
+                  padding: "6px 14px",
+                  cursor: "pointer",
+                }}
+              >
+                Salir
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  border: "1px solid #ddd",
+                  color: "#333",
+                  padding: "6px 14px",
+                  textDecoration: "none",
+                }}
+              >
+                Entrar
+              </Link>
+            )
           )}
         </div>
       </nav>
@@ -119,7 +130,6 @@ function CartIcon({ count }: { count: number }) {
         transition: "color 0.15s",
       }}
     >
-      {/* Bag SVG */}
       <svg
         width="20"
         height="20"
@@ -135,7 +145,6 @@ function CartIcon({ count }: { count: number }) {
         <path d="M16 10a4 4 0 01-8 0" />
       </svg>
 
-      {/* Badge */}
       {count > 0 && (
         <span
           style={{

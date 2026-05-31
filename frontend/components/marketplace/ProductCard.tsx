@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/types";
+import { formatCLP } from "@/lib/utils/format";
 
 function isNew(createdAt: string) {
   return Date.now() - new Date(createdAt).getTime() < 1000 * 60 * 60 * 24 * 30;
@@ -155,7 +156,7 @@ export function ProductCard({ product }: { product: Product }) {
         </p>
 
         <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#1a1a1a" }}>
-          ${Number(product.price).toFixed(2)}
+          {formatCLP(product.price)}
         </p>
 
         {/* Size chips */}

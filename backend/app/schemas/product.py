@@ -31,7 +31,8 @@ class ProductUpdate(BaseModel):
 
 class ProductOut(ProductBase):
     id: uuid.UUID
-    seller_id: uuid.UUID
+    seller_id: uuid.UUID | None
+    brand_id: uuid.UUID | None = None
     image_urls: list[str]
     model_3d_url: str | None
     created_at: datetime

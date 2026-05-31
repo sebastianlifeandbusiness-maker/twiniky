@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { formatCLP } from "@/lib/utils/format";
+
+const MAX_PRICE = 120000;
 
 const SIZES_CLOTHING = ["XS", "S", "M", "L", "XL", "XXL"];
 const SIZES_SHOES = ["36", "37", "38", "39", "40", "41", "42"];
@@ -52,7 +55,7 @@ export function ProductFilters({
   onClear,
 }: Props) {
   const hasActive =
-    selectedSizes.length > 0 || priceRange[0] > 0 || priceRange[1] < 500;
+    selectedSizes.length > 0 || priceRange[0] > 0 || priceRange[1] < MAX_PRICE;
 
   const label: React.CSSProperties = {
     margin: "0 0 12px",
@@ -98,8 +101,8 @@ export function ProductFilters({
         <input
           type="range"
           min={0}
-          max={500}
-          step={10}
+          max={MAX_PRICE}
+          step={5000}
           value={priceRange[1]}
           onChange={(e) =>
             onPriceRangeChange([priceRange[0], Number(e.target.value)])
@@ -114,8 +117,8 @@ export function ProductFilters({
             color: "#777",
           }}
         >
-          <span>${priceRange[0]}</span>
-          <span>${priceRange[1] >= 500 ? "500+" : priceRange[1]}</span>
+          <span>{formatCLP(priceRange[0])}</span>
+          <span>{priceRange[1] >= MAX_PRICE ? `${formatCLP(MAX_PRICE)}+` : formatCLP(priceRange[1])}</span>
         </div>
       </div>
 

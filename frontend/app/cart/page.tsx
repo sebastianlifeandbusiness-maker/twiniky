@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCartStore, cartTotal, cartCount, type CartItem } from "@/lib/store/cart";
+import { formatCLP, FREE_SHIPPING_THRESHOLD, SHIPPING_COST } from "@/lib/utils/format";
 
 export default function CartPage() {
   const [mounted, setMounted] = useState(false);
@@ -215,7 +217,7 @@ function CartRow({
   onRemove: () => void;
   onQtyChange: (qty: number) => void;
 }) {
-  const subtotal = Number(item.product.price) * item.quantity;
+  const subtotal = Math.round(Number(item.product.price)) * item.quantity;
 
   return (
     <div
@@ -343,7 +345,7 @@ function CartRow({
           textAlign: "right",
         }}
       >
-        ${subtotal.toFixed(2)}
+        {formatCLP(subtotal)}
       </p>
 
       {/* Remove */}
@@ -419,8 +421,13 @@ function RemoveButton({ onClick }: { onClick: () => void }) {
 
 function OrderSummary({ items, total }: { items: CartItem[]; total: number }) {
   const [hov, setHov] = useState(false);
-  const shipping = total >= 150 ? 0 : 9.99;
+  const router = useRouter();
+  const shipping = total >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
   const finalTotal = total + shipping;
+
+  function handleCheckout() {
+    router.push("/checkout");
+  }
 
   return (
     <div
@@ -463,7 +470,7 @@ function OrderSummary({ items, total }: { items: CartItem[]; total: number }) {
               {item.quantity > 1 ? ` ×${item.quantity}` : ""}
             </span>
             <span style={{ flexShrink: 0 }}>
-              ${(Number(item.product.price) * item.quantity).toFixed(2)}
+              {formatCLP(Math.round(Number(item.product.price)) * item.quantity)}
             </span>
           </div>
         ))}
@@ -481,7 +488,7 @@ function OrderSummary({ items, total }: { items: CartItem[]; total: number }) {
           }}
         >
           <span>Subtotal</span>
-          <span>${total.toFixed(2)}</span>
+          <span>{formatCLP(total)}</span>
         </div>
 
         {/* Shipping */}
@@ -496,13 +503,13 @@ function OrderSummary({ items, total }: { items: CartItem[]; total: number }) {
         >
           <span>Envío</span>
           <span style={{ color: shipping === 0 ? "#16a34a" : "#333" }}>
-            {shipping === 0 ? "Gratis" : `$${shipping.toFixed(2)}`}
+            {shipping === 0 ? "Gratis" : formatCLP(shipping)}
           </span>
         </div>
 
         {shipping > 0 && (
           <p style={{ margin: "0 0 8px", fontSize: 10, color: "#aaa" }}>
-            Envío gratis en pedidos superiores a $150
+            Envío gratis en pedidos superiores a $50.000
           </p>
         )}
       </div>
@@ -521,11 +528,12 @@ function OrderSummary({ items, total }: { items: CartItem[]; total: number }) {
         }}
       >
         <span>Total</span>
-        <span>${finalTotal.toFixed(2)}</span>
+        <span>{formatCLP(finalTotal)}</span>
       </div>
 
       {/* CTA */}
       <button
+        onClick={handleCheckout}
         onMouseEnter={() => setHov(true)}
         onMouseLeave={() => setHov(false)}
         style={{

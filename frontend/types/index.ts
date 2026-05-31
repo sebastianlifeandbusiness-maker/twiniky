@@ -35,6 +35,15 @@ export interface Order {
   created_at: string;
 }
 
+export interface Brand {
+  id: string;
+  name: string;
+  email: string;
+  logo_url: string | null;
+  description: string | null;
+  created_at: string;
+}
+
 export interface TryOnSession {
   session_id: string;
   product_id: string;

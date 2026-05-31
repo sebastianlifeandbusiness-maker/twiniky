@@ -86,11 +86,11 @@ function CategoryTab({
 export default function MarketplacePage() {
   const [activeCategory, setActiveCategory] = useState("Todos");
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 120000]);
   const [sortBy, setSortBy] = useState("newest");
   const [search, setSearch] = useState("");
 
-  const { data: raw, isLoading } = useProducts({
+  const { data: raw, isLoading, isError, refetch } = useProducts({
     category: activeCategory !== "Todos" ? activeCategory : undefined,
     q: search || undefined,
   });
@@ -106,7 +106,7 @@ export default function MarketplacePage() {
       .filter(
         (p) =>
           Number(p.price) >= priceRange[0] &&
-          (priceRange[1] >= 500 || Number(p.price) <= priceRange[1])
+          (priceRange[1] >= 120000 || Number(p.price) <= priceRange[1])
       )
       .sort((a, b) => {
         if (sortBy === "price_asc") return Number(a.price) - Number(b.price);
@@ -126,7 +126,7 @@ export default function MarketplacePage() {
 
   function clearFilters() {
     setSelectedSizes([]);
-    setPriceRange([0, 500]);
+    setPriceRange([0, 120000]);
   }
 
   return (
@@ -318,7 +318,29 @@ export default function MarketplacePage() {
           </div>
 
           {/* Grid */}
-          {isLoading ? (
+          {isError ? (
+            <div style={{ padding: "60px 0", textAlign: "center" }}>
+              <p style={{ fontSize: 14, color: "#e53e3e", marginBottom: 16 }}>
+                No se pudo conectar al servidor. Verifica que el backend esté activo.
+              </p>
+              <button
+                onClick={() => refetch()}
+                style={{
+                  background: "none",
+                  border: "1px solid #111",
+                  padding: "10px 24px",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.15em",
+                  textTransform: "uppercase",
+                  cursor: "pointer",
+                  color: "#111",
+                }}
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : isLoading ? (
             <div
               style={{
                 display: "grid",

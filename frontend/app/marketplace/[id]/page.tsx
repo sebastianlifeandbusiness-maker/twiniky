@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useProduct } from "@/lib/hooks/useProducts";
 import { useCartStore } from "@/lib/store/cart";
 import { useRouter } from "next/navigation";
+import { formatCLP } from "@/lib/utils/format";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -252,7 +253,7 @@ export default function ProductDetailPage({ params }: Props) {
               color: "#111",
             }}
           >
-            ${Number(product.price).toFixed(2)}
+            {formatCLP(product.price)}
           </p>
 
           {/* Description */}

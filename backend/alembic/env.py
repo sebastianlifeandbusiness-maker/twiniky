@@ -11,6 +11,7 @@ from app.db.session import Base
 import app.models.user  # noqa
 import app.models.product  # noqa
 import app.models.order  # noqa
+import app.models.brand  # noqa
 
 config = context.config
 

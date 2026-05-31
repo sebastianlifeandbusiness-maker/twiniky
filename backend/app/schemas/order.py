@@ -14,9 +14,20 @@ class OrderCreate(BaseModel):
     shipping_address: str
 
 
+class CheckoutItem(BaseModel):
+    product_id: uuid.UUID
+    quantity: int = 1
+    size: str | None = None
+
+
+class CheckoutCreate(BaseModel):
+    items: list[CheckoutItem]
+    shipping_address: str  # JSON-encoded contact + address
+
+
 class OrderOut(BaseModel):
     id: uuid.UUID
-    buyer_id: uuid.UUID
+    buyer_id: uuid.UUID | None
     product_id: uuid.UUID
     quantity: int
     size: str | None
