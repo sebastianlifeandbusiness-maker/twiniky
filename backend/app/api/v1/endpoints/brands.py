@@ -3,12 +3,15 @@ import bcrypt
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from app.db.session import get_db
 from app.models.brand import Brand
+from app.models.order import Order
 from app.models.product import Product
 from app.schemas.brand import BrandCreate, BrandOut, BrandProductCreate, BrandLogin, BrandToken
+from app.schemas.order import BrandOrderOut
 from app.schemas.product import ProductOut
 
 router = APIRouter()
@@ -137,3 +140,35 @@ async def list_brand_products(brand_id: uuid.UUID, db: AsyncSession = Depends(ge
         select(Product).where(Product.brand_id == brand_id).order_by(Product.created_at.desc())
     )
     return result.scalars().all()
+
+
+@router.get("/{brand_id}/orders/", response_model=list[BrandOrderOut])
+async def list_brand_orders(
+    brand_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_brand: Brand = Depends(get_current_brand),
+):
+    if current_brand.id != brand_id:
+        raise HTTPException(status_code=403, detail="No puedes ver pedidos de otra marca.")
+    result = await db.execute(
+        select(Order)
+        .join(Product, Order.product_id == Product.id)
+        .where(Product.brand_id == brand_id)
+        .options(selectinload(Order.product))
+        .order_by(Order.created_at.desc())
+    )
+    orders = result.scalars().all()
+    return [
+        BrandOrderOut(
+            id=o.id,
+            product_id=o.product_id,
+            product_name=o.product.name if o.product else "—",
+            quantity=o.quantity,
+            size=o.size,
+            total_price=o.total_price,
+            status=o.status,
+            shipping_address=o.shipping_address,
+            created_at=o.created_at,
+        )
+        for o in orders
+    ]

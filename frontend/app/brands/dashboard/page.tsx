@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { brandsApi, BrandProductPayload } from "@/lib/api";
+import { brandsApi, BrandProductPayload, BrandOrderOut } from "@/lib/api";
 import { useBrandStore } from "@/lib/store/brand";
 import { formatCLP } from "@/lib/utils/format";
 import type { Product } from "@/types";
@@ -21,12 +21,17 @@ const EMPTY_PRODUCT: BrandProductPayload = {
   stock: 0,
 };
 
+type Tab = "catalog" | "orders";
+
 export default function BrandDashboardPage() {
   const router = useRouter();
   const { brand, token, clearBrand } = useBrandStore();
   const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("catalog");
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [orders, setOrders] = useState<BrandOrderOut[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
@@ -40,6 +45,7 @@ export default function BrandDashboardPage() {
   useEffect(() => {
     if (brand && token) {
       fetchProducts();
+      fetchOrders();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brand, token]);
@@ -54,6 +60,19 @@ export default function BrandDashboardPage() {
       // ignore
     } finally {
       setLoadingProducts(false);
+    }
+  }
+
+  async function fetchOrders() {
+    if (!brand) return;
+    setLoadingOrders(true);
+    try {
+      const { data } = await brandsApi.getOrders(brand.id);
+      setOrders(data);
+    } catch {
+      // ignore
+    } finally {
+      setLoadingOrders(false);
     }
   }
 
@@ -171,37 +190,127 @@ export default function BrandDashboardPage() {
                 : "—"
             }
           />
+          <StatBox label="Pedidos" value={String(orders.length)} />
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: "#aaa" }}>
-            Catálogo ({products.length})
-          </p>
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #ebebeb", marginBottom: 32 }}>
+          {(["catalog", "orders"] as Tab[]).map((tab) => {
+            const labels: Record<Tab, string> = { catalog: "Catálogo", orders: "Pedidos" };
+            const active = activeTab === tab;
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  borderBottom: active ? "2px solid #111" : "2px solid transparent",
+                  padding: "10px 20px",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: active ? "#111" : "#aaa",
+                  cursor: "pointer",
+                  marginBottom: -1,
+                }}
+              >
+                {labels[tab]}
+              </button>
+            );
+          })}
         </div>
 
-        {loadingProducts ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "40px 20px" }}>
-            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
-          </div>
-        ) : products.length === 0 ? (
-          <div style={{ padding: "60px 0", textAlign: "center", border: "1px dashed #e0e0e0" }}>
-            <p style={{ fontSize: 15, fontWeight: 300, color: "#ccc", margin: "0 0 12px" }}>
-              Aún no tienes productos
-            </p>
-            <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 24px" }}>
-              Agrega tu primer producto para aparecer en el catálogo de Twiniky
-            </p>
-            <button
-              onClick={() => setShowAddForm(true)}
-              style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", background: "none", border: "none", color: "#888", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}
-            >
-              Agregar primer producto
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "40px 20px" }}>
-            {products.map((p) => <DashboardProductCard key={p.id} product={p} />)}
-          </div>
+        {/* Catálogo tab */}
+        {activeTab === "catalog" && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: "#aaa" }}>
+                Catálogo ({products.length})
+              </p>
+            </div>
+
+            {loadingProducts ? (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "40px 20px" }}>
+                {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+              </div>
+            ) : products.length === 0 ? (
+              <div style={{ padding: "60px 0", textAlign: "center", border: "1px dashed #e0e0e0" }}>
+                <p style={{ fontSize: 15, fontWeight: 300, color: "#ccc", margin: "0 0 12px" }}>
+                  Aún no tienes productos
+                </p>
+                <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 24px" }}>
+                  Agrega tu primer producto para aparecer en el catálogo de Twiniky
+                </p>
+                <button
+                  onClick={() => setShowAddForm(true)}
+                  style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", background: "none", border: "none", color: "#888", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}
+                >
+                  Agregar primer producto
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "40px 20px" }}>
+                {products.map((p) => <DashboardProductCard key={p.id} product={p} />)}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Pedidos tab */}
+        {activeTab === "orders" && (
+          <>
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.22em", textTransform: "uppercase", color: "#aaa" }}>
+                Pedidos ({orders.length})
+              </p>
+            </div>
+
+            {loadingOrders ? (
+              <div>
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} style={{ borderBottom: "1px solid #ebebeb", padding: "20px 0" }}>
+                    <div className="tw-skeleton" style={{ height: 11, width: "30%", marginBottom: 8 }} />
+                    <div className="tw-skeleton" style={{ height: 11, width: "60%" }} />
+                  </div>
+                ))}
+              </div>
+            ) : orders.length === 0 ? (
+              <div style={{ padding: "60px 0", textAlign: "center", border: "1px dashed #e0e0e0" }}>
+                <p style={{ fontSize: 15, fontWeight: 300, color: "#ccc", margin: "0 0 12px" }}>
+                  Aún no tienes pedidos
+                </p>
+                <p style={{ fontSize: 13, color: "#aaa", margin: 0 }}>
+                  Los pedidos de tus productos aparecerán aquí
+                </p>
+              </div>
+            ) : (
+              <div>
+                {/* Table header */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "2fr 1fr 1fr 1fr 2fr 1fr",
+                    gap: "0 16px",
+                    padding: "0 0 10px",
+                    borderBottom: "1px solid #111",
+                    marginBottom: 4,
+                  }}
+                >
+                  {["Producto", "Cant.", "Talla", "Total", "Dirección", "Estado"].map((h) => (
+                    <p key={h} style={{ margin: 0, fontSize: 9, fontWeight: 700, letterSpacing: "0.18em", textTransform: "uppercase", color: "#888" }}>
+                      {h}
+                    </p>
+                  ))}
+                </div>
+
+                {orders.map((order) => (
+                  <OrderRow key={order.id} order={order} />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -261,6 +370,77 @@ function SkeletonCard() {
       <div className="tw-skeleton" style={{ height: 8, width: "35%", marginBottom: 5 }} />
       <div className="tw-skeleton" style={{ height: 11, width: "80%", marginBottom: 4 }} />
       <div className="tw-skeleton" style={{ height: 11, width: "30%" }} />
+    </div>
+  );
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Pendiente",
+  paid: "Pagado",
+  shipped: "Enviado",
+  delivered: "Entregado",
+  cancelled: "Cancelado",
+};
+
+const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  pending: { bg: "#fef9c3", color: "#854d0e" },
+  paid: { bg: "#dcfce7", color: "#166534" },
+  shipped: { bg: "#dbeafe", color: "#1e40af" },
+  delivered: { bg: "#d1fae5", color: "#065f46" },
+  cancelled: { bg: "#fee2e2", color: "#991b1b" },
+};
+
+function parseShipping(raw: string | null): string {
+  if (!raw) return "—";
+  try {
+    const obj = JSON.parse(raw);
+    const parts = [obj.fullName, obj.address, obj.city, obj.region].filter(Boolean);
+    return parts.join(", ") || raw;
+  } catch {
+    return raw;
+  }
+}
+
+function OrderRow({ order }: { order: BrandOrderOut }) {
+  const badge = STATUS_COLORS[order.status] ?? { bg: "#f3f4f6", color: "#374151" };
+  const label = STATUS_LABELS[order.status] ?? order.status;
+  const date = new Date(order.created_at).toLocaleDateString("es-CL", { day: "2-digit", month: "short", year: "numeric" });
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "2fr 1fr 1fr 1fr 2fr 1fr",
+        gap: "0 16px",
+        padding: "16px 0",
+        borderBottom: "1px solid #f0f0f0",
+        alignItems: "start",
+      }}
+    >
+      <div>
+        <p style={{ margin: "0 0 2px", fontSize: 13, color: "#111" }}>{order.product_name}</p>
+        <p style={{ margin: 0, fontSize: 10, color: "#bbb" }}>{date}</p>
+      </div>
+      <p style={{ margin: 0, fontSize: 13, color: "#555" }}>{order.quantity}</p>
+      <p style={{ margin: 0, fontSize: 13, color: "#555" }}>{order.size ?? "—"}</p>
+      <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#111" }}>{formatCLP(order.total_price)}</p>
+      <p style={{ margin: 0, fontSize: 11, color: "#777", lineHeight: 1.5 }}>{parseShipping(order.shipping_address)}</p>
+      <span
+        style={{
+          display: "inline-block",
+          padding: "3px 8px",
+          fontSize: 9,
+          fontWeight: 700,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          backgroundColor: badge.bg,
+          color: badge.color,
+          borderRadius: 2,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
     </div>
   );
 }

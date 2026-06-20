@@ -43,8 +43,12 @@ export interface OrderOut {
 }
 
 export const checkoutApi = {
-  submit: (payload: CheckoutPayload) =>
-    api.post<OrderOut[]>("/checkout/", payload),
+  submit: (payload: CheckoutPayload) => {
+    const brandToken = typeof window !== "undefined" ? localStorage.getItem("brand_token") : null;
+    return api.post<OrderOut[]>("/checkout/", payload, {
+      headers: brandToken ? { "X-Brand-Token": brandToken } : {},
+    });
+  },
 };
 
 export interface BrandCreatePayload {
@@ -89,6 +93,18 @@ brandsAxios.interceptors.request.use((config) => {
   return config;
 });
 
+export interface BrandOrderOut {
+  id: string;
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  size: string | null;
+  total_price: string;
+  status: string;
+  shipping_address: string | null;
+  created_at: string;
+}
+
 export const brandsApi = {
   register: (payload: BrandCreatePayload) =>
     api.post<Brand>("/brands/register", payload),
@@ -98,6 +114,8 @@ export const brandsApi = {
     brandsAxios.get<Product[]>(`/brands/${brandId}/products/`),
   addProduct: (brandId: string, payload: BrandProductPayload) =>
     brandsAxios.post<Product>(`/brands/${brandId}/products/`, payload),
+  getOrders: (brandId: string) =>
+    brandsAxios.get<BrandOrderOut[]>(`/brands/${brandId}/orders/`),
   getMe: () =>
     brandsAxios.get<Brand>("/brands/me"),
 };

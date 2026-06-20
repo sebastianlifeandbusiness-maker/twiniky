@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useProduct } from "@/lib/hooks/useProducts";
 import { useCartStore } from "@/lib/store/cart";
+import { useBrandStore } from "@/lib/store/brand";
 import { useRouter } from "next/navigation";
 import { formatCLP } from "@/lib/utils/format";
 
@@ -17,11 +18,18 @@ export default function ProductDetailPage({ params }: Props) {
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [activeImg, setActiveImg] = useState(0);
   const [added, setAdded] = useState(false);
+  const [blockMsg, setBlockMsg] = useState<string | null>(null);
   const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
+  const { brand: activeBrand } = useBrandStore();
 
   function handleAddToCart() {
     if (!product) return;
+    if (activeBrand && product.brand_id && product.brand_id === activeBrand.id) {
+      setBlockMsg("No puedes comprar productos de tu propia marca.");
+      setTimeout(() => setBlockMsg(null), 2500);
+      return;
+    }
     addItem(product, selectedSize);
     setAdded(true);
     setTimeout(() => setAdded(false), 1800);
@@ -348,8 +356,23 @@ export default function ProductDetailPage({ params }: Props) {
             <AddToCartBtn
               needsSize={product.sizes.length > 0 && !selectedSize}
               added={added}
+              blocked={!!blockMsg}
               onClick={handleAddToCart}
             />
+
+            {blockMsg && (
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 11,
+                  color: "#dc2626",
+                  letterSpacing: "0.03em",
+                  textAlign: "center",
+                }}
+              >
+                {blockMsg}
+              </p>
+            )}
           </div>
 
           {/* Meta */}
@@ -416,10 +439,12 @@ function SizeBtn({
 function AddToCartBtn({
   needsSize,
   added,
+  blocked,
   onClick,
 }: {
   needsSize: boolean;
   added: boolean;
+  blocked: boolean;
   onClick: () => void;
 }) {
   const [hov, setHov] = useState(false);
@@ -428,10 +453,11 @@ function AddToCartBtn({
   let label = "Agregar al carrito";
   if (needsSize) label = "Selecciona una talla";
   if (added) label = "✓ Añadido al carrito";
+  if (blocked) label = "No disponible para tu marca";
 
-  const bg = added ? "#16a34a" : hov && !disabled ? "#111" : "transparent";
-  const color = added || (hov && !disabled) ? "#fff" : "#111";
-  const border = added ? "1px solid #16a34a" : "1px solid #111";
+  const bg = added ? "#16a34a" : blocked ? "#fee2e2" : hov && !disabled ? "#111" : "transparent";
+  const color = added ? "#fff" : blocked ? "#dc2626" : hov && !disabled ? "#fff" : "#111";
+  const border = added ? "1px solid #16a34a" : blocked ? "1px solid #fecaca" : "1px solid #111";
 
   return (
     <button

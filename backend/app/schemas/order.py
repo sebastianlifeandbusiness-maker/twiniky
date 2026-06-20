@@ -37,3 +37,17 @@ class OrderOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class BrandOrderOut(BaseModel):
+    id: uuid.UUID
+    product_id: uuid.UUID
+    product_name: str
+    quantity: int
+    size: str | None
+    total_price: Decimal
+    status: OrderStatus
+    shipping_address: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useBrandStore } from "@/lib/store/brand";
 
 const FEATURES = [
   {
@@ -47,6 +49,15 @@ const FEATURES = [
 ];
 
 export default function BrandsLandingPage() {
+  const router = useRouter();
+  const { token: brandToken } = useBrandStore();
+
+  useEffect(() => {
+    if (brandToken) router.replace("/brands/dashboard");
+  }, [brandToken, router]);
+
+  if (brandToken) return null;
+
   return (
     <div style={{ backgroundColor: "#fff", minHeight: "100vh", fontFamily: "inherit" }}>
 

@@ -11,6 +11,7 @@ export interface User {
 export interface Product {
   id: string;
   seller_id: string;
+  brand_id: string | null;
   name: string;
   description: string | null;
   price: string;

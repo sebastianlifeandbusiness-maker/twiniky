@@ -63,7 +63,11 @@ export function Navbar() {
         <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
           <NavLink href="/marketplace">Marketplace</NavLink>
           <NavLink href="/tryon">Probador 3D</NavLink>
-          <NavLink href="/brands">Para marcas</NavLink>
+          {mounted && brandToken ? (
+            <NavLink href="/brands/dashboard">Mi panel</NavLink>
+          ) : (
+            <NavLink href="/brands">Para marcas</NavLink>
+          )}
 
           {/* Cart icon — oculto en dashboard de marcas */}
           {!isBrandDashboard && <CartIcon count={count} />}
