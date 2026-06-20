@@ -90,7 +90,11 @@ async def list_brands(db: AsyncSession = Depends(get_db)):
     return result.scalars().all()
 
 @router.get("/by-email", response_model=BrandOut)
-async def get_brand_by_email(email: str = Query(...), db: AsyncSession = Depends(get_db)):
+async def get_brand_by_email(
+    email: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+    current_brand: Brand = Depends(get_current_brand),
+):
     result = await db.execute(select(Brand).where(Brand.email == email))
     brand = result.scalar_one_or_none()
     if not brand:
