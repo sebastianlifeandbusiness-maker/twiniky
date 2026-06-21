@@ -53,3 +53,18 @@ export interface TryOnSession {
   status: "processing" | "ready" | "failed";
   result_url: string | null;
 }
+
+export interface Measurements {
+  height:        number; // cm
+  bust:          number; // cm
+  waist:         number; // cm
+  hips:          number; // cm
+  armLength:     number; // cm — hombro a muñeca
+  shoeSize:      number; // talla EU/CL (35–44)
+  shoulderWidth: number; // cm — ancho de hombros
+  torsoLength:   number; // cm — largo de torso (hombro a crotch)
+  legLength:     number; // cm — largo de pierna (ingle a piso)
+  armGirth:      number; // cm — contorno bíceps
+  thighGirth:    number; // cm — contorno muslo
+  calfGirth:     number; // cm — contorno pantorrilla
+}

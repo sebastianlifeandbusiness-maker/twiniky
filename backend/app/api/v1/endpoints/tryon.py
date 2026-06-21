@@ -31,3 +31,18 @@ async def get_tryon_session(
     if session is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sesión no encontrada.")
     return session
+
+
+@router.post("/upload-photos")
+async def upload_photos(
+    frontal: UploadFile = File(...),
+    perfil_izq: UploadFile = File(...),
+    perfil_der: UploadFile = File(...),
+    espalda: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await TryOnService(db).save_photos(
+        current_user.id,
+        [frontal, perfil_izq, perfil_der, espalda],
+    )
