@@ -67,7 +67,7 @@ export default function BrandRegisterPage() {
         password: form.password,
       });
       setBrandSession(
-        { id: tokenData.brand_id, name: tokenData.brand_name, email: form.email.trim(), logo_url: undefined, description: undefined, created_at: new Date().toISOString() },
+        { id: tokenData.brand_id, name: tokenData.brand_name, email: form.email.trim(), logo_url: null, description: null, created_at: new Date().toISOString() },
         tokenData.access_token
       );
       router.push("/brands/dashboard");

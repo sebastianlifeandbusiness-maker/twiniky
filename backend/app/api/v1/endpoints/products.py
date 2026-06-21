@@ -44,6 +44,8 @@ async def create_product(
         price=payload.price,
         category=payload.category,
         sizes=payload.sizes,
+        color=payload.color,
+        occasions=payload.occasions,
         image_urls=[payload.image_url] if payload.image_url else [],
         stock=payload.stock,
     )

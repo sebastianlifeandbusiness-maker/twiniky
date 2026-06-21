@@ -130,6 +130,8 @@ async def add_brand_product(
         category=payload.category,
         brand=current_brand.name,
         sizes=payload.sizes,
+        color=payload.color,
+        occasions=payload.occasions,
         image_urls=[payload.image_url] if payload.image_url else [],
         stock=payload.stock,
     )

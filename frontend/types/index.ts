@@ -18,6 +18,8 @@ export interface Product {
   category: string;
   brand: string | null;
   sizes: string[];
+  color: string | null;
+  occasions: string[];
   image_urls: string[];
   model_3d_url: string | null;
   stock: number;

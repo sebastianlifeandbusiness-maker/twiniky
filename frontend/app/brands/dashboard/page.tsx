@@ -17,15 +17,32 @@ const EMPTY_PRODUCT: BrandProductPayload = {
   price: 0,
   category: "",
   sizes: [],
+  color: undefined,
+  occasions: [],
   image_url: "",
   stock: 0,
 };
+
+const BRAND_COLORS = [
+  { label: "Negro",    value: "negro",    hex: "#1a1a1a" },
+  { label: "Blanco",   value: "blanco",   hex: "#f0f0f0" },
+  { label: "Azul",     value: "azul",     hex: "#2563eb" },
+  { label: "Rojo",     value: "rojo",     hex: "#dc2626" },
+  { label: "Verde",    value: "verde",    hex: "#16a34a" },
+  { label: "Amarillo", value: "amarillo", hex: "#eab308" },
+  { label: "Rosado",   value: "rosado",   hex: "#f472b6" },
+  { label: "Gris",     value: "gris",     hex: "#9ca3af" },
+  { label: "Café",     value: "cafe",     hex: "#92400e" },
+  { label: "Beige",    value: "beige",    hex: "#d4b896" },
+];
+
+const BRAND_OCCASIONS = ["Casual", "Oficina", "Fiesta", "Deporte"];
 
 type Tab = "catalog" | "orders";
 
 export default function BrandDashboardPage() {
   const router = useRouter();
-  const { brand, token, clearBrand } = useBrandStore();
+  const { brand, token } = useBrandStore();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("catalog");
   const [products, setProducts] = useState<Product[]>([]);
@@ -74,11 +91,6 @@ export default function BrandDashboardPage() {
     } finally {
       setLoadingOrders(false);
     }
-  }
-
-  function handleLogout() {
-    clearBrand();
-    router.push("/brands/login");
   }
 
   if (!mounted || !brand || !token) return null;
@@ -138,21 +150,6 @@ export default function BrandDashboardPage() {
             }}
           >
             + Agregar producto
-          </button>
-          <button
-            onClick={handleLogout}
-            style={{
-              fontSize: 11,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              backgroundColor: "transparent",
-              color: "#aaa",
-              border: "1px solid #e0e0e0",
-              padding: "10px 18px",
-              cursor: "pointer",
-            }}
-          >
-            Salir
           </button>
         </div>
       </div>
@@ -463,6 +460,15 @@ function AddProductModal({ brandId, onClose, onCreated }: { brandId: string; onC
     }));
   }
 
+  function toggleOccasion(occ: string) {
+    setForm((prev) => ({
+      ...prev,
+      occasions: (prev.occasions ?? []).includes(occ)
+        ? (prev.occasions ?? []).filter((o) => o !== occ)
+        : [...(prev.occasions ?? []), occ],
+    }));
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -478,6 +484,8 @@ function AddProductModal({ brandId, onClose, onCreated }: { brandId: string; onC
         stock: Number(form.stock) || 0,
         description: form.description || undefined,
         image_url: form.image_url || undefined,
+        color: form.color || undefined,
+        occasions: form.occasions?.length ? form.occasions : undefined,
       });
       onCreated(data);
     } catch (err: unknown) {
@@ -555,6 +563,41 @@ function AddProductModal({ brandId, onClose, onCreated }: { brandId: string; onC
                 <button key={size} type="button" onClick={() => toggleSize(size)}
                   style={{ padding: "6px 12px", fontSize: 11, fontWeight: active ? 700 : 400, border: `1px solid ${active ? "#111" : "#e0e0e0"}`, backgroundColor: active ? "#111" : "#fff", color: active ? "#fff" : "#555", cursor: "pointer" }}>
                   {size}
+                </button>
+              );
+            })}
+          </div>
+
+          <label style={labelStyle}>Color principal</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 8, marginBottom: 20 }}>
+            {BRAND_COLORS.map(({ label, value, hex }) => {
+              const active = form.color === value;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  title={label}
+                  onClick={() => setForm((prev) => ({ ...prev, color: active ? undefined : value }))}
+                  style={{
+                    width: 32, height: 32, borderRadius: "50%", backgroundColor: hex, cursor: "pointer",
+                    border: active ? "3px solid #111" : "2px solid #e0e0e0",
+                    outline: active ? "2px solid #fff" : "none",
+                    outlineOffset: -4,
+                    boxSizing: "border-box",
+                  }}
+                />
+              );
+            })}
+          </div>
+
+          <label style={labelStyle}>Ocasión</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8, marginBottom: 20 }}>
+            {BRAND_OCCASIONS.map((occ) => {
+              const active = (form.occasions ?? []).includes(occ);
+              return (
+                <button key={occ} type="button" onClick={() => toggleOccasion(occ)}
+                  style={{ padding: "6px 14px", fontSize: 11, fontWeight: active ? 700 : 400, border: `1px solid ${active ? "#111" : "#e0e0e0"}`, backgroundColor: active ? "#111" : "#fff", color: active ? "#fff" : "#555", cursor: "pointer" }}>
+                  {occ}
                 </button>
               );
             })}

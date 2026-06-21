@@ -6,23 +6,57 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth";
 import { useCartStore, cartCount } from "@/lib/store/cart";
 import { useBrandStore } from "@/lib/store/brand";
+import { useFavoritesStore } from "@/lib/store/favorites";
+import { favoritesApi } from "@/lib/api";
+
+const NAV_CATEGORIES = [
+  { label: "Todos",       href: "/marketplace" },
+  { label: "Tops",        href: "/marketplace?category=Tops" },
+  { label: "Pantalones",  href: "/marketplace?category=Pantalones" },
+  { label: "Vestidos",    href: "/marketplace?category=Vestidos" },
+  { label: "Chaquetas",   href: "/marketplace?category=Chaquetas" },
+  { label: "Zapatos",     href: "/marketplace?category=Zapatos" },
+  { label: "Accesorios",  href: "/marketplace?category=Accesorios" },
+];
 
 export function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { token, logout } = useAuthStore();
-  const { brand, token: brandToken } = useBrandStore();
+  const { brand, token: brandToken, clearBrand } = useBrandStore();
   const items = useCartStore((s) => s.items);
+  const setAllFavorites = useFavoritesStore((s) => s.setAll);
   const [mounted, setMounted] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => { setMounted(true); }, []);
 
-  const count = mounted ? cartCount(items) : 0;
-  const isBrandDashboard = pathname?.startsWith("/brands/dashboard");
+  // Cargar favoritos cuando hay sesión de comprador
+  useEffect(() => {
+    if (!token) return;
+    favoritesApi.list()
+      .then(({ data }) => setAllFavorites(data.map((p) => p.id)))
+      .catch(() => {});
+  }, [token, setAllFavorites]);
 
-  function handleLogout() {
+  const count = mounted ? cartCount(items) : 0;
+
+  function handleBuyerLogout() {
     logout();
+    setAllFavorites([]);
     router.push("/");
+  }
+
+  function handleBrandLogout() {
+    clearBrand();
+    router.push("/");
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (search.trim()) {
+      router.push(`/marketplace?q=${encodeURIComponent(search.trim())}`);
+    }
   }
 
   return (
@@ -43,9 +77,10 @@ export function Navbar() {
           height: 56,
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          gap: 24,
         }}
       >
+        {/* Logo */}
         <Link
           href="/"
           style={{
@@ -55,66 +90,201 @@ export function Navbar() {
             textTransform: "uppercase",
             color: "#111",
             textDecoration: "none",
+            flexShrink: 0,
           }}
         >
           Twiniky
         </Link>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 28 }}>
-          <NavLink href="/marketplace">Marketplace</NavLink>
-          <NavLink href="/tryon">Probador 3D</NavLink>
-          {mounted && brandToken ? (
-            <NavLink href="/brands/dashboard">Mi panel</NavLink>
-          ) : (
-            <NavLink href="/brands">Para marcas</NavLink>
-          )}
+        {/* Search — centro, solo para invitado y comprador */}
+        {mounted && !brandToken && (
+          <form
+            onSubmit={handleSearch}
+            style={{
+              flex: 1,
+              maxWidth: 400,
+              margin: "0 auto",
+              position: "relative",
+            }}
+          >
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar prendas, marcas…"
+              style={{
+                width: "100%",
+                padding: "7px 36px 7px 14px",
+                fontSize: 12,
+                color: "#333",
+                border: "1px solid #e8e8e8",
+                backgroundColor: "#fafafa",
+                outline: "none",
+                boxSizing: "border-box",
+                fontFamily: "inherit",
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                position: "absolute",
+                right: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "none",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                color: "#aaa",
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </button>
+          </form>
+        )}
 
-          {/* Cart icon — oculto en dashboard de marcas */}
-          {!isBrandDashboard && <CartIcon count={count} />}
-
-          {/* Botón de sesión */}
-          {mounted && (
-            isBrandDashboard && brandToken ? (
-              // En dashboard de marca: no mostrar nada, el botón Salir está en el dashboard
-              null
-            ) : token ? (
+        {/* Derecha */}
+        <div style={{ display: "flex", alignItems: "center", gap: 20, marginLeft: "auto", flexShrink: 0 }}>
+          {!mounted ? null : brandToken ? (
+            /* MARCA */
+            <>
+              <span style={{ fontSize: 11, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                {brand?.name}
+              </span>
               <button
-                onClick={handleLogout}
+                onClick={handleBrandLogout}
                 style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  border: "1px solid #ddd",
-                  backgroundColor: "transparent",
-                  color: "#333",
-                  padding: "6px 14px",
-                  cursor: "pointer",
+                  fontSize: 11, fontWeight: 500, letterSpacing: "0.1em",
+                  textTransform: "uppercase", border: "1px solid #ddd",
+                  backgroundColor: "transparent", color: "#333",
+                  padding: "6px 14px", cursor: "pointer",
+                }}
+              >
+                Cerrar sesión
+              </button>
+            </>
+          ) : token ? (
+            /* COMPRADOR */
+            <>
+              <NavLink href="/marketplace">Marketplace</NavLink>
+              <IconButton href="/favorites" label="Favoritos"><HeartIcon /></IconButton>
+              <IconButton href="/tryon" label="Probador 3D"><MannequinIcon /></IconButton>
+              <CartIcon count={count} />
+              <button
+                onClick={handleBuyerLogout}
+                style={{
+                  fontSize: 11, fontWeight: 500, letterSpacing: "0.1em",
+                  textTransform: "uppercase", border: "1px solid #ddd",
+                  backgroundColor: "transparent", color: "#333",
+                  padding: "6px 14px", cursor: "pointer",
                 }}
               >
                 Salir
               </button>
-            ) : (
+            </>
+          ) : (
+            /* INVITADO */
+            <>
+              <NavLink href="/marketplace">Marketplace</NavLink>
+              <NavLink href="/brands">Para marcas</NavLink>
+              <CartIcon count={count} />
               <Link
                 href="/login"
                 style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  border: "1px solid #ddd",
-                  color: "#333",
-                  padding: "6px 14px",
-                  textDecoration: "none",
+                  fontSize: 11, fontWeight: 500, letterSpacing: "0.1em",
+                  textTransform: "uppercase", border: "1px solid #111",
+                  color: "#111", padding: "6px 14px", textDecoration: "none",
                 }}
               >
-                Entrar
+                Iniciar sesión
               </Link>
-            )
+            </>
           )}
         </div>
       </nav>
+
+      {/* ── Segunda fila: categorías (solo invitado/comprador) ── */}
+      {mounted && !brandToken && (
+        <div style={{ borderTop: "1px solid #f0f0f0" }}>
+          <div
+            style={{
+              maxWidth: 1440,
+              margin: "0 auto",
+              padding: "0 32px",
+              display: "flex",
+              gap: 0,
+              overflowX: "auto",
+            }}
+          >
+            {NAV_CATEGORIES.map(({ label, href }) => {
+              const isActive =
+                pathname === "/marketplace" &&
+                (href === "/marketplace"
+                  ? typeof window !== "undefined" && !window.location.search.includes("category=")
+                  : typeof window !== "undefined" && window.location.search.includes(`category=${label}`));
+              return (
+                <Link
+                  key={label}
+                  href={href}
+                  style={{
+                    padding: "9px 14px",
+                    fontSize: 10,
+                    fontWeight: isActive ? 700 : 500,
+                    letterSpacing: "0.15em",
+                    textTransform: "uppercase",
+                    color: isActive ? "#111" : "#888",
+                    textDecoration: "none",
+                    borderBottom: isActive ? "2px solid #111" : "2px solid transparent",
+                    whiteSpace: "nowrap",
+                    transition: "color 0.15s, border-color 0.15s",
+                  }}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </header>
+  );
+}
+
+function IconButton({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <Link
+      href={href}
+      title={label}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{ display: "flex", alignItems: "center", color: hov ? "#111" : "#666", textDecoration: "none", transition: "color 0.15s" }}
+    >
+      {children}
+    </Link>
+  );
+}
+
+function HeartIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  );
+}
+
+function MannequinIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="4" r="2.2" />
+      <path d="M9 8h6l1 6H8L9 8z" />
+      <path d="M9 14l-2 6" />
+      <path d="M15 14l2 6" />
+    </svg>
   );
 }
 
@@ -123,52 +293,18 @@ function CartIcon({ count }: { count: number }) {
   return (
     <Link
       href="/cart"
+      title="Carrito"
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      style={{
-        position: "relative",
-        display: "flex",
-        alignItems: "center",
-        color: hov ? "#111" : "#555",
-        textDecoration: "none",
-        transition: "color 0.15s",
-      }}
+      style={{ position: "relative", display: "flex", alignItems: "center", color: hov ? "#111" : "#666", textDecoration: "none", transition: "color 0.15s" }}
     >
-      <svg
-        width="20"
-        height="20"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
         <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
         <line x1="3" y1="6" x2="21" y2="6" />
         <path d="M16 10a4 4 0 01-8 0" />
       </svg>
-
       {count > 0 && (
-        <span
-          style={{
-            position: "absolute",
-            top: -6,
-            right: -8,
-            backgroundColor: "#111",
-            color: "#fff",
-            fontSize: 9,
-            fontWeight: 700,
-            minWidth: 16,
-            height: 16,
-            borderRadius: "50%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            lineHeight: 1,
-            padding: "0 3px",
-          }}
-        >
+        <span style={{ position: "absolute", top: -6, right: -8, backgroundColor: "#111", color: "#fff", fontSize: 9, fontWeight: 700, minWidth: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: "0 3px" }}>
           {count > 99 ? "99+" : count}
         </span>
       )}
@@ -183,15 +319,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
       href={href}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      style={{
-        fontSize: 11,
-        fontWeight: 500,
-        letterSpacing: "0.1em",
-        textTransform: "uppercase",
-        color: hov ? "#111" : "#888",
-        textDecoration: "none",
-        transition: "color 0.15s",
-      }}
+      style={{ fontSize: 11, fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase", color: hov ? "#111" : "#888", textDecoration: "none", transition: "color 0.15s" }}
     >
       {children}
     </Link>

@@ -21,6 +21,8 @@ class Product(Base):
     category: Mapped[str] = mapped_column(String(100), nullable=False)
     brand: Mapped[str] = mapped_column(String(100), nullable=True)
     sizes: Mapped[list[str]] = mapped_column(ARRAY(String), default=[])
+    color: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    occasions: Mapped[list[str]] = mapped_column(ARRAY(String), default=[], nullable=True)
     image_urls: Mapped[list[str]] = mapped_column(ARRAY(String), default=[])
     model_3d_url: Mapped[str] = mapped_column(String(500), nullable=True)
     stock: Mapped[int] = mapped_column(default=0)

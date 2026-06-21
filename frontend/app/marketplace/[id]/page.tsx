@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useProduct } from "@/lib/hooks/useProducts";
 import { useCartStore } from "@/lib/store/cart";
 import { useBrandStore } from "@/lib/store/brand";
+import { useAuthStore } from "@/lib/store/auth";
+import { useFavoritesStore } from "@/lib/store/favorites";
+import { favoritesApi } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { formatCLP } from "@/lib/utils/format";
 
@@ -19,9 +22,25 @@ export default function ProductDetailPage({ params }: Props) {
   const [activeImg, setActiveImg] = useState(0);
   const [added, setAdded] = useState(false);
   const [blockMsg, setBlockMsg] = useState<string | null>(null);
+  const [favLoading, setFavLoading] = useState(false);
   const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
   const { brand: activeBrand } = useBrandStore();
+  const { token } = useAuthStore();
+  const { ids: favIds, add: favAdd, remove: favRemove } = useFavoritesStore();
+
+  async function handleFavorite() {
+    if (!product) return;
+    if (!token) { router.push("/login"); return; }
+    if (favLoading) return;
+    const isFav = favIds.includes(product.id);
+    setFavLoading(true);
+    try {
+      if (isFav) { await favoritesApi.remove(product.id); favRemove(product.id); }
+      else { await favoritesApi.add(product.id); favAdd(product.id); }
+    } catch { /* mantiene estado anterior */ }
+    finally { setFavLoading(false); }
+  }
 
   function handleAddToCart() {
     if (!product) return;
@@ -239,18 +258,21 @@ export default function ProductDetailPage({ params }: Props) {
             </p>
           )}
 
-          {/* Name */}
-          <h1
-            style={{
-              margin: "0 0 14px",
-              fontSize: 24,
-              fontWeight: 300,
-              color: "#111",
-              lineHeight: 1.3,
-            }}
-          >
-            {product.name}
-          </h1>
+          {/* Name + favorito */}
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, marginBottom: 14 }}>
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 300, color: "#111", lineHeight: 1.3 }}>
+              {product.name}
+            </h1>
+            <button
+              onClick={handleFavorite}
+              title={favIds.includes(product.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
+              style={{ flexShrink: 0, width: 36, height: 36, borderRadius: "50%", border: "1px solid #e8e8e8", backgroundColor: "#fff", cursor: favLoading ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill={favIds.includes(product.id) ? "#e11d48" : "none"} stroke={favIds.includes(product.id) ? "#e11d48" : "#888"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+            </button>
+          </div>
 
           {/* Price */}
           <p

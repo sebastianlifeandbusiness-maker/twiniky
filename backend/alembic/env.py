@@ -12,6 +12,8 @@ import app.models.user  # noqa
 import app.models.product  # noqa
 import app.models.order  # noqa
 import app.models.brand  # noqa
+import app.models.waitlist  # noqa
+import app.models.favorite  # noqa
 
 config = context.config
 

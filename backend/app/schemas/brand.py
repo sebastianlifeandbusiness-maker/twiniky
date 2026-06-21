@@ -35,5 +35,7 @@ class BrandProductCreate(BaseModel):
     price: Decimal
     category: str
     sizes: list[str] = []
+    color: str | None = None
+    occasions: list[str] = []
     image_url: str | None = None
     stock: int = 0

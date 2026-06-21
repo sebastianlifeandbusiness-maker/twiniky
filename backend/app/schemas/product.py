@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 
 class ProductBase(BaseModel):
@@ -12,7 +12,14 @@ class ProductBase(BaseModel):
     category: str
     brand: str | None = None
     sizes: list[str] = []
+    color: str | None = None
+    occasions: list[str] = []
     stock: int = 0
+
+    @field_validator("occasions", "sizes", mode="before")
+    @classmethod
+    def coerce_null_to_empty(cls, v: object) -> list:
+        return v if v is not None else []
 
 
 class ProductCreate(ProductBase):
@@ -25,6 +32,8 @@ class ProductUpdate(BaseModel):
     price: Decimal | None = None
     category: str | None = None
     sizes: list[str] | None = None
+    color: str | None = None
+    occasions: list[str] | None = None
     stock: int | None = None
     model_3d_url: str | None = None
 

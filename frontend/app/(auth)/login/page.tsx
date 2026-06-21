@@ -2,69 +2,196 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { AxiosError } from "axios";
-import { authApi } from "@/lib/api";
-import { useAuthStore } from "@/lib/store/auth";
 
-export default function LoginPage() {
-  const router = useRouter();
-  const setAuth = useAuthStore((s) => s.setAuth);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    try {
-      const { data } = await authApi.login(email, password);
-      setAuth(null, data.access_token);
-      router.push("/marketplace");
-    } catch (err) {
-      const detail = err instanceof AxiosError ? err.response?.data?.detail : null;
-      setError(typeof detail === "string" ? detail : "Error al iniciar sesión");
-    } finally {
-      setLoading(false);
-    }
-  };
+export default function LoginSelectorPage() {
+  const [hovBuyer, setHovBuyer] = useState(false);
+  const [hovBrand, setHovBrand] = useState(false);
 
   return (
-    <div className="flex min-h-[80vh] items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold mb-6 text-center">Iniciar sesión</h1>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-black"
-            required
-          />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-black text-white rounded-lg py-2 font-semibold hover:bg-gray-800 transition disabled:opacity-50"
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "60px 24px",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 560 }}>
+        <Link
+          href="/"
+          style={{
+            display: "inline-block",
+            marginBottom: 48,
+            fontSize: 10,
+            letterSpacing: "0.15em",
+            textTransform: "uppercase",
+            color: "#aaa",
+            textDecoration: "none",
+          }}
+        >
+          ← Volver al inicio
+        </Link>
+
+        <h1
+          style={{
+            margin: "0 0 8px",
+            fontSize: 26,
+            fontWeight: 300,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: "#111",
+            textAlign: "center",
+          }}
+        >
+          ¿Quién eres?
+        </h1>
+        <p
+          style={{
+            margin: "0 0 48px",
+            fontSize: 13,
+            color: "#999",
+            textAlign: "center",
+          }}
+        >
+          Elige tu tipo de cuenta para continuar
+        </p>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+          }}
+        >
+          {/* Tarjeta comprador */}
+          <Link
+            href="/login/comprador"
+            onMouseEnter={() => setHovBuyer(true)}
+            onMouseLeave={() => setHovBuyer(false)}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 16,
+              padding: "40px 24px",
+              border: hovBuyer ? "1.5px solid #111" : "1.5px solid #e8e8e8",
+              backgroundColor: hovBuyer ? "#fafafa" : "#fff",
+              textDecoration: "none",
+              transition: "border-color 0.15s, background-color 0.15s",
+              cursor: "pointer",
+            }}
           >
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
-        <p className="text-center text-sm text-gray-500 mt-4">
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={hovBuyer ? "#111" : "#888"}
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ transition: "stroke 0.15s" }}
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <div style={{ textAlign: "center" }}>
+              <p
+                style={{
+                  margin: "0 0 4px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "#111",
+                }}
+              >
+                Soy comprador
+              </p>
+              <p style={{ margin: 0, fontSize: 11, color: "#999" }}>
+                Quiero comprar ropa
+              </p>
+            </div>
+          </Link>
+
+          {/* Tarjeta marca */}
+          <Link
+            href="/brands/login"
+            onMouseEnter={() => setHovBrand(true)}
+            onMouseLeave={() => setHovBrand(false)}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 16,
+              padding: "40px 24px",
+              border: hovBrand ? "1.5px solid #111" : "1.5px solid #e8e8e8",
+              backgroundColor: hovBrand ? "#fafafa" : "#fff",
+              textDecoration: "none",
+              transition: "border-color 0.15s, background-color 0.15s",
+              cursor: "pointer",
+            }}
+          >
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke={hovBrand ? "#111" : "#888"}
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ transition: "stroke 0.15s" }}
+            >
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            <div style={{ textAlign: "center" }}>
+              <p
+                style={{
+                  margin: "0 0 4px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "#111",
+                }}
+              >
+                Soy una marca
+              </p>
+              <p style={{ margin: 0, fontSize: 11, color: "#999" }}>
+                Quiero vender mi catálogo
+              </p>
+            </div>
+          </Link>
+        </div>
+
+        <p
+          style={{
+            marginTop: 32,
+            fontSize: 12,
+            color: "#aaa",
+            textAlign: "center",
+          }}
+        >
           ¿No tienes cuenta?{" "}
-          <Link href="/register" className="underline">
-            Regístrate
+          <Link
+            href="/register"
+            style={{ color: "#555", textDecoration: "underline", textUnderlineOffset: 3 }}
+          >
+            Regístrate como comprador
+          </Link>
+          {" · "}
+          <Link
+            href="/brands/register"
+            style={{ color: "#555", textDecoration: "underline", textUnderlineOffset: 3 }}
+          >
+            Registra tu marca
           </Link>
         </p>
       </div>

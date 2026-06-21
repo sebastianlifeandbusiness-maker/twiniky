@@ -77,6 +77,8 @@ export interface BrandProductPayload {
   price: number;
   category: string;
   sizes: string[];
+  color?: string;
+  occasions?: string[];
   image_url?: string;
   stock?: number;
 }
@@ -118,4 +120,15 @@ export const brandsApi = {
     brandsAxios.get<BrandOrderOut[]>(`/brands/${brandId}/orders/`),
   getMe: () =>
     brandsAxios.get<Brand>("/brands/me"),
+};
+
+export const waitlistApi = {
+  join: (email: string) =>
+    api.post<{ message: string }>("/waitlist/", { email }),
+};
+
+export const favoritesApi = {
+  list: () => api.get<import("@/types").Product[]>("/favorites/"),
+  add: (productId: string) => api.post<{ message: string }>(`/favorites/${productId}`),
+  remove: (productId: string) => api.delete(`/favorites/${productId}`),
 };
