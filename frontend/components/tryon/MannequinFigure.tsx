@@ -1,12 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
 import type { Measurements } from "@/types";
 
 interface Props {
   measurements: Measurements;
-  garmentColor?: string | null;
-  category?: string | null;
 }
 
 const BASE = {
@@ -63,30 +60,7 @@ const CALF_BOTTOM_OFFSET = CALF_CENTER_OFFSET + CALF_H / 2; // 0.595
 
 const SKIN = "#d4c5b8";
 
-function getColoredParts(category: string | null | undefined): Set<string> {
-  switch (category) {
-    case "Tops":
-      return new Set(["shoulders", "upperTorso", "leftUpperArm", "rightUpperArm"]);
-    case "Pantalones":
-      return new Set(["lowerTorso", "pelvis", "leftThigh", "rightThigh", "leftCalf", "rightCalf"]);
-    case "Vestidos":
-      return new Set([
-        "shoulders", "upperTorso", "lowerTorso", "pelvis",
-        "leftThigh", "rightThigh", "leftCalf", "rightCalf",
-      ]);
-    case "Chaquetas":
-      return new Set([
-        "shoulders", "upperTorso",
-        "leftUpperArm", "rightUpperArm", "leftForearm", "rightForearm",
-      ]);
-    case "Zapatos":
-      return new Set(["leftFoot", "rightFoot"]);
-    default:
-      return new Set();
-  }
-}
-
-export function MannequinFigure({ measurements, garmentColor, category }: Props) {
+export function MannequinFigure({ measurements }: Props) {
   const hScale   = measurements.height        / BASE.height;
   const bScale   = measurements.bust          / BASE.bust;
   const wScale   = measurements.waist         / BASE.waist;
@@ -121,14 +95,8 @@ export function MannequinFigure({ measurements, garmentColor, category }: Props)
   //   footY = 0.67 − 0.595 − 0.025 − 0.025 = 0.025 ✓ (coincide con valor original)
   const footY = HIP_JOINT_Y - CALF_BOTTOM_OFFSET * llScale - ANKLE_GAP - FOOT_H / 2;
 
-  const colored = useMemo(() => getColoredParts(category), [category]);
-
-  function col(part: string): string {
-    return garmentColor && colored.has(part) ? garmentColor : SKIN;
-  }
-
-  function Mat({ part }: { part: string }) {
-    return <meshStandardMaterial color={col(part)} roughness={0.65} metalness={0.04} />;
+  function Mat() {
+    return <meshStandardMaterial color={SKIN} roughness={0.65} metalness={0.04} />;
   }
 
   return (
@@ -149,25 +117,25 @@ export function MannequinFigure({ measurements, garmentColor, category }: Props)
       {/* ── Hombros / placa superior ── */}
       <mesh position={[0, 1.32, 0]} scale={[shwScale, 1, 1]}>
         <boxGeometry args={[0.44, 0.07, 0.20]} />
-        <Mat part="shoulders" />
+        <Mat />
       </mesh>
 
       {/* ── Torso superior (busto) ── */}
       <mesh position={[0, upperTorsoY, 0]} scale={[bScale, tlScale, bScale * 0.6 + 0.4]}>
         <cylinderGeometry args={[0.155, 0.112, UPPER_TORSO_H, 10]} />
-        <Mat part="upperTorso" />
+        <Mat />
       </mesh>
 
       {/* ── Torso inferior (cintura) ── */}
       <mesh position={[0, lowerTorsoY, 0]} scale={[wScale, tlScale, wScale * 0.6 + 0.4]}>
         <cylinderGeometry args={[0.112, 0.135, LOWER_TORSO_H, 10]} />
-        <Mat part="lowerTorso" />
+        <Mat />
       </mesh>
 
       {/* ── Pelvis / cadera ── */}
       <mesh position={[0, pelvisY, 0]} scale={[hipScale, tlScale, hipScale * 0.65 + 0.35]}>
         <cylinderGeometry args={[0.148, 0.142, PELVIS_H, 10]} />
-        <Mat part="pelvis" />
+        <Mat />
       </mesh>
 
       {/*
@@ -184,7 +152,7 @@ export function MannequinFigure({ measurements, garmentColor, category }: Props)
           scale={[agScale, aScale, agScale]}
         >
           <cylinderGeometry args={[UPPER_ARM_R_TOP, UPPER_ARM_R_BOT, UPPER_ARM_H, 8]} />
-          <Mat part="leftUpperArm" />
+          <Mat />
         </mesh>
         {/* Antebrazo — centro justo bajo el brazo superior */}
         <mesh
@@ -192,7 +160,7 @@ export function MannequinFigure({ measurements, garmentColor, category }: Props)
           scale={[agScale, aScale, agScale]}
         >
           <cylinderGeometry args={[FOREARM_R_TOP, FOREARM_R_BOT, FOREARM_H, 8]} />
-          <Mat part="leftForearm" />
+          <Mat />
         </mesh>
       </group>
 
@@ -203,39 +171,39 @@ export function MannequinFigure({ measurements, garmentColor, category }: Props)
           scale={[agScale, aScale, agScale]}
         >
           <cylinderGeometry args={[UPPER_ARM_R_TOP, UPPER_ARM_R_BOT, UPPER_ARM_H, 8]} />
-          <Mat part="rightUpperArm" />
+          <Mat />
         </mesh>
         <mesh
           position={[0, -UPPER_ARM_H * aScale - (FOREARM_H * aScale) / 2, 0]}
           scale={[agScale, aScale, agScale]}
         >
           <cylinderGeometry args={[FOREARM_R_TOP, FOREARM_R_BOT, FOREARM_H, 8]} />
-          <Mat part="rightForearm" />
+          <Mat />
         </mesh>
       </group>
 
       {/* ── Muslo izquierdo ── */}
       <mesh position={[-0.09, thighY, 0]} scale={[tgScale, llScale, tgScale]}>
         <cylinderGeometry args={[0.073, 0.063, THIGH_H, 8]} />
-        <Mat part="leftThigh" />
+        <Mat />
       </mesh>
 
       {/* ── Muslo derecho ── */}
       <mesh position={[0.09, thighY, 0]} scale={[tgScale, llScale, tgScale]}>
         <cylinderGeometry args={[0.073, 0.063, THIGH_H, 8]} />
-        <Mat part="rightThigh" />
+        <Mat />
       </mesh>
 
       {/* ── Pantorrilla izquierda ── */}
       <mesh position={[-0.09, calfY, 0]} scale={[cgScale, llScale, cgScale]}>
         <cylinderGeometry args={[0.056, 0.046, CALF_H, 8]} />
-        <Mat part="leftCalf" />
+        <Mat />
       </mesh>
 
       {/* ── Pantorrilla derecha ── */}
       <mesh position={[0.09, calfY, 0]} scale={[cgScale, llScale, cgScale]}>
         <cylinderGeometry args={[0.056, 0.046, CALF_H, 8]} />
-        <Mat part="rightCalf" />
+        <Mat />
       </mesh>
 
       {/*
@@ -245,12 +213,12 @@ export function MannequinFigure({ measurements, garmentColor, category }: Props)
        */}
       <mesh position={[-0.09, footY, 0.04]}>
         <boxGeometry args={[0.08, FOOT_H, 0.18]} />
-        <Mat part="leftFoot" />
+        <Mat />
       </mesh>
 
       <mesh position={[0.09, footY, 0.04]}>
         <boxGeometry args={[0.08, FOOT_H, 0.18]} />
-        <Mat part="rightFoot" />
+        <Mat />
       </mesh>
 
     </group>

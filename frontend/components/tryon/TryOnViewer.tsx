@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { MannequinFigure } from "./MannequinFigure";
+import { GarmentOverlay } from "./GarmentOverlay";
 import { useProduct } from "@/lib/hooks/useProducts";
 import { formatCLP } from "@/lib/utils/format";
 import type { Measurements } from "@/types";
@@ -121,10 +122,11 @@ function SceneContents({
           intensity={scene.extraLight.intensity}
         />
       )}
-      <MannequinFigure
+      <MannequinFigure measurements={measurements} />
+      <GarmentOverlay
         measurements={measurements}
-        garmentColor={garmentColor}
-        category={category}
+        garmentColor={garmentColor ?? null}
+        category={category ?? null}
       />
       <OrbitControls
         enablePan={false}
