@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AxiosError } from "axios";
-import { authApi } from "@/lib/api";
+import { authApi, avatarApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
 
-export default function CompradorLoginPage() {
+function CompradorLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get("redirect");
+  const product = searchParams.get("product");
   const setAuth = useAuthStore((s) => s.setAuth);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,7 +25,19 @@ export default function CompradorLoginPage() {
     try {
       const { data } = await authApi.login(email, password);
       setAuth(null, data.access_token);
-      router.push("/marketplace");
+
+      if (product) {
+        try {
+          await avatarApi.get();
+          // 200 → tiene medidas → ir directo al probador
+          router.push(`/tryon?product=${product}`);
+        } catch {
+          // 404 → sin medidas → configurar avatar primero
+          router.push(`/avatar/setup?product=${product}`);
+        }
+      } else {
+        router.push(redirect ?? "/marketplace");
+      }
     } catch (err) {
       const detail = err instanceof AxiosError ? err.response?.data?.detail : null;
       setError(typeof detail === "string" ? detail : "Error al iniciar sesión");
@@ -158,7 +173,7 @@ export default function CompradorLoginPage() {
         <p style={{ fontSize: 12, color: "#aaa", textAlign: "center" }}>
           ¿No tienes cuenta?{" "}
           <Link
-            href="/register"
+            href={product ? `/register?product=${product}` : "/register"}
             style={{ color: "#555", textDecoration: "underline", textUnderlineOffset: 3 }}
           >
             Regístrate gratis
@@ -166,5 +181,13 @@ export default function CompradorLoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function CompradorLoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <CompradorLoginForm />
+    </Suspense>
   );
 }

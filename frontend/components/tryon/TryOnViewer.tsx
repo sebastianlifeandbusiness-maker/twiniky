@@ -1,12 +1,22 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { MannequinFigure } from "./MannequinFigure";
 import { GarmentOverlay } from "./GarmentOverlay";
 import { useProduct } from "@/lib/hooks/useProducts";
 import { formatCLP } from "@/lib/utils/format";
+import Link from "next/link";
+import {
+  useTryOnStore,
+  ZONES,
+  getZoneForCategory,
+  type ZoneId,
+  type ZoneGarment,
+} from "@/lib/store/tryon";
+import { avatarApi, apiToMeasurements } from "@/lib/api";
+import { useAuthStore } from "@/lib/store/auth";
 import type { Measurements } from "@/types";
 
 const SCENES = [
@@ -52,41 +62,18 @@ const SCENES = [
   },
 ] as const;
 
-const SLIDER_GROUPS = [
-  {
-    label: "General",
-    sliders: [
-      { field: "height" as const, label: "Altura", unit: "cm", min: 140, max: 200 },
-    ],
-  },
-  {
-    label: "Torso y hombros",
-    sliders: [
-      { field: "shoulderWidth" as const, label: "Ancho hombros",  unit: "cm", min: 30, max: 55  },
-      { field: "torsoLength"   as const, label: "Largo torso",    unit: "cm", min: 45, max: 75  },
-      { field: "bust"          as const, label: "Busto",          unit: "cm", min: 65, max: 130 },
-      { field: "waist"         as const, label: "Cintura",        unit: "cm", min: 50, max: 110 },
-      { field: "hips"          as const, label: "Cadera",         unit: "cm", min: 65, max: 130 },
-    ],
-  },
-  {
-    label: "Brazos",
-    sliders: [
-      { field: "armLength" as const, label: "Largo brazo",  unit: "cm", min: 50, max: 80 },
-      { field: "armGirth"  as const, label: "Cont. bíceps", unit: "cm", min: 18, max: 45 },
-    ],
-  },
-  {
-    label: "Piernas",
-    sliders: [
-      { field: "legLength"  as const, label: "Largo pierna",  unit: "cm", min: 65, max: 105 },
-      { field: "thighGirth" as const, label: "Cont. muslo",   unit: "cm", min: 40, max: 80  },
-      { field: "calfGirth"  as const, label: "Cont. pantorr.", unit: "cm", min: 25, max: 55 },
-    ],
-  },
-] as const;
-
-const SHOE_SIZES = [35, 36, 37, 38, 39, 40, 41, 42, 43, 44];
+const COLOR_SWATCHES = [
+  { label: "Blanco",     hex: "#f5f5f3" },
+  { label: "Negro",      hex: "#111111" },
+  { label: "Gris",       hex: "#888888" },
+  { label: "Azul marino",hex: "#0a1e60" },
+  { label: "Rojo",       hex: "#cc2200" },
+  { label: "Verde",      hex: "#2a8840" },
+  { label: "Beige",      hex: "#d4c5a9" },
+  { label: "Rosa",       hex: "#e8789a" },
+  { label: "Amarillo",   hex: "#e8c018" },
+  { label: "Naranja",    hex: "#e86518" },
+];
 
 interface Props {
   measurements: Measurements;
@@ -97,13 +84,11 @@ interface Props {
 function SceneContents({
   measurements,
   scene,
-  garmentColor,
-  category,
+  garmentList,
 }: {
   measurements: Measurements;
-  scene: typeof SCENES[number];
-  garmentColor?: string | null;
-  category?: string | null;
+  scene: (typeof SCENES)[number];
+  garmentList: Array<{ category: string; effectiveColor: string | null }>;
 }) {
   return (
     <>
@@ -123,11 +108,14 @@ function SceneContents({
         />
       )}
       <MannequinFigure measurements={measurements} />
-      <GarmentOverlay
-        measurements={measurements}
-        garmentColor={garmentColor ?? null}
-        category={category ?? null}
-      />
+      {garmentList.map((g, i) => (
+        <GarmentOverlay
+          key={i}
+          measurements={measurements}
+          garmentColor={g.effectiveColor}
+          category={g.category}
+        />
+      ))}
       <OrbitControls
         enablePan={false}
         minDistance={1.4}
@@ -140,22 +128,222 @@ function SceneContents({
   );
 }
 
-export function TryOnViewer({ measurements, onChangeMeasurements, productId }: Props) {
+export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasurements: _onChangeMeasurements, productId }: Props) {
   const [sceneIdx, setSceneIdx] = useState(0);
   const scene = SCENES[sceneIdx];
   const [hovScene, setHovScene] = useState<number | null>(null);
+  const [measurements, setMeasurements] = useState<Measurements>(initialMeasurements);
+
+  const { token } = useAuthStore();
+  const { garments, setGarment, removeGarment, setOverrideColor } = useTryOnStore();
+
+  // Carga medidas desde API al montar (override de las medidas iniciales)
+  useEffect(() => {
+    if (!token) return;
+    avatarApi.get()
+      .then(({ data }) => setMeasurements(apiToMeasurements(data)))
+      .catch(() => {});
+  }, [token]);
 
   const { data: product } = useProduct(productId ?? "");
+  const processedRef = useRef<string | null>(null);
 
-  const garmentColor = product?.color ?? null;
-  const category = product?.category ?? null;
+  const [conflictDialog, setConflictDialog] = useState<{
+    zoneId: ZoneId;
+    existing: ZoneGarment;
+    incoming: ZoneGarment;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!productId || !product || processedRef.current === productId) return;
+    processedRef.current = productId;
+
+    const zoneId = getZoneForCategory(product.category);
+    if (!zoneId) return;
+
+    const incoming: ZoneGarment = {
+      productId: product.id,
+      name: product.name,
+      brand: product.brand,
+      imageUrl: product.image_urls[0] ?? "",
+      category: product.category,
+      color: product.color,
+      price: product.price,
+      overrideColor: null,
+    };
+
+    const { garments: currentGarments } = useTryOnStore.getState();
+    const existing = currentGarments[zoneId];
+    if (existing && existing.productId !== productId) {
+      setConflictDialog({ zoneId, existing, incoming });
+    } else {
+      setGarment(zoneId, incoming);
+    }
+  }, [product, productId, setGarment]);
+
+  const garmentList = ZONES
+    .map((z) => garments[z.id])
+    .filter((g): g is ZoneGarment => g !== undefined)
+    .map((g) => ({
+      category: g.category,
+      effectiveColor: g.overrideColor ?? g.color,
+    }));
+
+  const activeZonesWithGarments = ZONES.filter((z) => garments[z.id] !== undefined);
 
   return (
-    <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+    <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+
+      {/* ── Panel izquierdo: zonas de prendas ── */}
+      <div style={{ flex: "0 0 170px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <p
+          style={{
+            margin: "0 0 4px",
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: "#999",
+          }}
+        >
+          Prendas
+        </p>
+        {ZONES.map((zone) => {
+          const garment = garments[zone.id];
+          return (
+            <div
+              key={zone.id}
+              style={{
+                border: `1px solid ${garment ? "#111" : "#e4e4e0"}`,
+                borderRadius: 8,
+                overflow: "hidden",
+                backgroundColor: "#fafaf8",
+              }}
+            >
+              {garment ? (
+                <div style={{ position: "relative", padding: "10px" }}>
+                  <button
+                    onClick={() => removeGarment(zone.id)}
+                    title="Quitar prenda"
+                    style={{
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      width: 18,
+                      height: 18,
+                      border: "none",
+                      background: "#ebebea",
+                      borderRadius: "50%",
+                      cursor: "pointer",
+                      fontSize: 12,
+                      color: "#666",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      lineHeight: 1,
+                      padding: 0,
+                    }}
+                  >
+                    ×
+                  </button>
+                  <p
+                    style={{
+                      margin: "0 0 6px",
+                      fontSize: 7,
+                      fontWeight: 700,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: "#aaa",
+                    }}
+                  >
+                    {zone.label}
+                  </p>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {garment.imageUrl && (
+                      <img
+                        src={garment.imageUrl}
+                        alt={garment.name}
+                        style={{
+                          width: 36,
+                          height: 48,
+                          objectFit: "cover",
+                          borderRadius: 3,
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 9,
+                          color: "#111",
+                          fontWeight: 500,
+                          lineHeight: 1.35,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {garment.name}
+                      </p>
+                      <p style={{ margin: "3px 0 0", fontSize: 8, color: "#999" }}>
+                        {formatCLP(garment.price)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <a
+                  href={`/marketplace?category=${zone.primaryCategory}`}
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "14px 10px",
+                    textDecoration: "none",
+                    minHeight: 76,
+                  }}
+                >
+                  <span style={{ fontSize: 22, color: "#d0d0cc", lineHeight: 1, marginBottom: 5 }}>
+                    +
+                  </span>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 7,
+                      fontWeight: 700,
+                      letterSpacing: "0.18em",
+                      textTransform: "uppercase",
+                      color: "#bbb",
+                      textAlign: "center",
+                    }}
+                  >
+                    {zone.label}
+                  </p>
+                  <p
+                    style={{
+                      margin: "3px 0 0",
+                      fontSize: 7,
+                      color: "#ccc",
+                      textAlign: "center",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {zone.hint}
+                  </p>
+                </a>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
       {/* ── Canvas 3D ── */}
       <div
         style={{
-          flex: "0 0 63%",
+          flex: 1,
           height: 580,
           borderRadius: 12,
           overflow: "hidden",
@@ -168,20 +356,19 @@ export function TryOnViewer({ measurements, onChangeMeasurements, productId }: P
             <SceneContents
               measurements={measurements}
               scene={scene}
-              garmentColor={garmentColor}
-              category={category}
+              garmentList={garmentList}
             />
           </Suspense>
         </Canvas>
       </div>
 
-      {/* ── Panel de controles ── */}
+      {/* ── Panel derecho: escenas + colores ── */}
       <div
         style={{
-          flex: 1,
+          flex: "0 0 200px",
           display: "flex",
           flexDirection: "column",
-          gap: 28,
+          gap: 24,
           paddingTop: 4,
         }}
       >
@@ -245,121 +432,77 @@ export function TryOnViewer({ measurements, onChangeMeasurements, productId }: P
           </div>
         </div>
 
-        {/* Sliders de medidas — agrupados por zona corporal */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {SLIDER_GROUPS.map((group) => (
-            <div key={group.label}>
+        {/* Editar avatar */}
+        <Link
+          href="/avatar/setup"
+          style={{
+            display: "block",
+            padding: "9px 0",
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: "0.16em",
+            textTransform: "uppercase",
+            textAlign: "center",
+            border: "1px solid #e0e0dc",
+            borderRadius: 6,
+            color: "#666",
+            textDecoration: "none",
+            transition: "border-color 0.15s, color 0.15s",
+          }}
+        >
+          Editar avatar
+        </Link>
+
+        {/* Selector de color por zona activa */}
+        {activeZonesWithGarments.map((zone) => {
+          const garment = garments[zone.id]!;
+          const activeHex = garment.overrideColor;
+          return (
+            <div key={zone.id}>
               <p
                 style={{
-                  margin: "0 0 10px",
-                  fontSize: 8,
+                  margin: "0 0 8px",
+                  fontSize: 9,
                   fontWeight: 700,
-                  letterSpacing: "0.22em",
+                  letterSpacing: "0.18em",
                   textTransform: "uppercase",
-                  color: "#bbb",
-                  borderBottom: "1px solid #f0f0ee",
-                  paddingBottom: 5,
+                  color: "#999",
                 }}
               >
-                {group.label}
+                Color · {zone.label}
               </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
-                {group.sliders.map(({ field, label, unit, min, max }) => (
-                  <div key={field}>
-                    <div
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {COLOR_SWATCHES.map((sw) => {
+                  const isActive = activeHex === sw.hex;
+                  return (
+                    <button
+                      key={sw.hex}
+                      title={sw.label}
+                      onClick={() => setOverrideColor(zone.id, sw.hex)}
                       style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "baseline",
-                        marginBottom: 4,
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        backgroundColor: sw.hex,
+                        border: isActive
+                          ? "2px solid #111"
+                          : sw.hex === "#f5f5f3"
+                          ? "1px solid #ddd"
+                          : "1px solid transparent",
+                        cursor: "pointer",
+                        padding: 0,
+                        boxShadow: isActive ? "0 0 0 2px #fff, 0 0 0 4px #111" : "none",
+                        transition: "box-shadow 0.1s",
                       }}
-                    >
-                      <span style={{ fontSize: 10, color: "#555" }}>{label}</span>
-                      <span style={{ fontSize: 10, fontWeight: 600, color: "#111" }}>
-                        {measurements[field]}{" "}
-                        <span style={{ fontSize: 8, fontWeight: 400, color: "#aaa" }}>{unit}</span>
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={min}
-                      max={max}
-                      value={measurements[field]}
-                      onChange={(e) =>
-                        onChangeMeasurements({ ...measurements, [field]: Number(e.target.value) })
-                      }
-                      style={{ width: "100%", accentColor: "#111", cursor: "pointer" }}
                     />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
-          ))}
-        </div>
+          );
+        })}
 
-        {/* Prenda seleccionada */}
-        {product ? (
-          <div
-            style={{
-              border: "1px solid #e8e8e8",
-              borderRadius: 8,
-              padding: "14px 16px",
-            }}
-          >
-            <p
-              style={{
-                margin: "0 0 10px",
-                fontSize: 9,
-                fontWeight: 700,
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                color: "#999",
-              }}
-            >
-              Prenda seleccionada
-            </p>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              {product.image_urls[0] && (
-                <img
-                  src={product.image_urls[0]}
-                  alt={product.name}
-                  style={{
-                    width: 50,
-                    height: 66,
-                    objectFit: "cover",
-                    borderRadius: 4,
-                    flexShrink: 0,
-                  }}
-                />
-              )}
-              <div>
-                {product.brand && (
-                  <p
-                    style={{
-                      margin: "0 0 2px",
-                      fontSize: 9,
-                      color: "#bbb",
-                      letterSpacing: "0.16em",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {product.brand}
-                  </p>
-                )}
-                <p style={{ margin: "0 0 4px", fontSize: 12, color: "#111", fontWeight: 500 }}>
-                  {product.name}
-                </p>
-                <p style={{ margin: "0 0 4px", fontSize: 10, color: "#888" }}>
-                  {product.category}
-                  {product.color ? ` · ${product.color}` : ""}
-                </p>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "#111" }}>
-                  {formatCLP(product.price)}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : (
+        {activeZonesWithGarments.length === 0 && (
           <div
             style={{
               border: "1px dashed #e0e0dc",
@@ -371,71 +514,16 @@ export function TryOnViewer({ measurements, onChangeMeasurements, productId }: P
               lineHeight: 1.7,
             }}
           >
-            Sin prenda seleccionada.{" "}
+            Sin prendas seleccionadas.{" "}
             <a href="/marketplace" style={{ color: "#555", textDecoration: "underline" }}>
               Explorar catálogo
             </a>
           </div>
         )}
 
-        {/* Talla de pie */}
-        <div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "baseline",
-              marginBottom: 10,
-            }}
-          >
-            <p
-              style={{
-                margin: 0,
-                fontSize: 9,
-                fontWeight: 700,
-                letterSpacing: "0.22em",
-                textTransform: "uppercase",
-                color: "#999",
-              }}
-            >
-              Talla de pie
-            </p>
-            <span style={{ fontSize: 11, fontWeight: 600, color: "#111" }}>
-              {measurements.shoeSize}{" "}
-              <span style={{ fontSize: 9, fontWeight: 400, color: "#aaa" }}>EU</span>
-            </span>
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-            {SHOE_SIZES.map((size) => {
-              const active = measurements.shoeSize === size;
-              return (
-                <button
-                  key={size}
-                  onClick={() => onChangeMeasurements({ ...measurements, shoeSize: size })}
-                  style={{
-                    width: 36,
-                    height: 32,
-                    fontSize: 10,
-                    fontWeight: active ? 700 : 400,
-                    border: `1px solid ${active ? "#111" : "#e0e0dc"}`,
-                    backgroundColor: active ? "#111" : "#fff",
-                    color: active ? "#fff" : "#666",
-                    cursor: "pointer",
-                    borderRadius: 4,
-                    transition: "background-color 0.15s, color 0.15s, border-color 0.15s",
-                  }}
-                >
-                  {size}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Hint de interacción */}
         <p
           style={{
-            margin: 0,
+            margin: "auto 0 0",
             fontSize: 10,
             color: "#ccc",
             textAlign: "center",
@@ -445,6 +533,97 @@ export function TryOnViewer({ measurements, onChangeMeasurements, productId }: P
           Arrastra para girar · Scroll para zoom
         </p>
       </div>
+
+      {/* ── Diálogo de conflicto de zona ── */}
+      {conflictDialog && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setConflictDialog(null)}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 12,
+              padding: "28px 28px 24px",
+              maxWidth: 380,
+              width: "90%",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p
+              style={{
+                margin: "0 0 10px",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#111",
+              }}
+            >
+              Reemplazar prenda
+            </p>
+            <p
+              style={{
+                margin: "0 0 22px",
+                fontSize: 12,
+                color: "#555",
+                lineHeight: 1.65,
+              }}
+            >
+              Ya tienes <strong>{conflictDialog.existing.name}</strong> seleccionada.
+              ¿Quieres reemplazarla con <strong>{conflictDialog.incoming.name}</strong>?
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => {
+                  setGarment(conflictDialog.zoneId, conflictDialog.incoming);
+                  setConflictDialog(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "10px 0",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  backgroundColor: "#111",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                }}
+              >
+                Sí, reemplazar
+              </button>
+              <button
+                onClick={() => setConflictDialog(null)}
+                style={{
+                  flex: 1,
+                  padding: "10px 0",
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  backgroundColor: "#f0f0ee",
+                  color: "#333",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                }}
+              >
+                No
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

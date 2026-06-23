@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AxiosError } from "axios";
 import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const product = searchParams.get("product");
   const setAuth = useAuthStore((s) => s.setAuth);
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
@@ -22,7 +24,8 @@ export default function RegisterPage() {
       await authApi.register(form.email, form.password, form.name);
       const { data } = await authApi.login(form.email, form.password);
       setAuth(null, data.access_token);
-      router.push("/marketplace");
+      // Usuario nuevo nunca tiene medidas: si viene de una prenda va directo a setup
+      router.push(product ? `/avatar/setup?product=${product}` : "/marketplace");
     } catch (err) {
       const detail = err instanceof AxiosError ? err.response?.data?.detail : null;
       if (Array.isArray(detail)) {
@@ -76,11 +79,22 @@ export default function RegisterPage() {
         </form>
         <p className="text-center text-sm text-gray-500 mt-4">
           ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className="underline">
+          <Link
+            href={product ? `/login/comprador?product=${product}` : "/login"}
+            className="underline"
+          >
             Inicia sesión
           </Link>
         </p>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   );
 }

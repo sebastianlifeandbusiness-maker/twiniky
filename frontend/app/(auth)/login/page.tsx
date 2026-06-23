@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function LoginSelectorPage() {
   const [hovBuyer, setHovBuyer] = useState(false);
   const [hovBrand, setHovBrand] = useState(false);
+  const searchParams = useSearchParams();
+  const message = searchParams.get("message");
+  const productParam = searchParams.get("product");
 
   return (
     <div
@@ -34,6 +38,23 @@ export default function LoginSelectorPage() {
         >
           ← Volver al inicio
         </Link>
+
+        {(message === "tryon" || productParam) && (
+          <div
+            style={{
+              marginBottom: 28,
+              padding: "12px 16px",
+              backgroundColor: "#f5f5f3",
+              borderLeft: "3px solid #111",
+              borderRadius: 4,
+              fontSize: 12,
+              color: "#333",
+              lineHeight: 1.5,
+            }}
+          >
+            Inicia sesión para usar el Probador Virtual
+          </div>
+        )}
 
         <h1
           style={{
@@ -68,7 +89,15 @@ export default function LoginSelectorPage() {
         >
           {/* Tarjeta comprador */}
           <Link
-            href="/login/comprador"
+            href={
+              productParam
+                ? `/login/comprador?product=${productParam}`
+                : message === "tryon"
+                ? "/login/comprador?redirect=/avatar/setup"
+                : searchParams.get("redirect")
+                ? `/login/comprador?redirect=${encodeURIComponent(searchParams.get("redirect")!)}`
+                : "/login/comprador"
+            }
             onMouseEnter={() => setHovBuyer(true)}
             onMouseLeave={() => setHovBuyer(false)}
             style={{

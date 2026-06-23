@@ -1,12 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { BodyCapture } from "@/components/tryon/BodyCapture";
+import { avatarApi, apiToMeasurements } from "@/lib/api";
+import { useAuthStore } from "@/lib/store/auth";
 import type { Measurements } from "@/types";
 
-// Importación dinámica sin SSR: Three.js requiere WebGL (solo disponible en el browser)
 const TryOnViewer = dynamic(
   () => import("@/components/tryon/TryOnViewer").then((m) => ({ default: m.TryOnViewer })),
   {
@@ -32,26 +33,53 @@ const TryOnViewer = dynamic(
 );
 
 const DEFAULT_MEASUREMENTS: Measurements = {
-  height:        165,
-  bust:           88,
-  waist:          68,
-  hips:           94,
-  armLength:      58,
-  shoeSize:       39,
-  shoulderWidth:  40,
-  torsoLength:    61,
-  legLength:      85,
-  armGirth:       28,
-  thighGirth:     55,
-  calfGirth:      36,
+  height: 165, bust: 88, waist: 68, hips: 94,
+  armLength: 58, shoeSize: 39, shoulderWidth: 40,
+  torsoLength: 61, legLength: 85, armGirth: 28,
+  thighGirth: 55, calfGirth: 36,
 };
 
 function TryOnContent() {
   const searchParams = useSearchParams();
   const productId = searchParams.get("product");
+  const { token } = useAuthStore();
 
-  const [step, setStep] = useState<"capture" | "viewer">("capture");
+  const [step, setStep] = useState<"loading" | "capture" | "viewer">("loading");
   const [measurements, setMeasurements] = useState<Measurements>(DEFAULT_MEASUREMENTS);
+
+  useEffect(() => {
+    if (!token) {
+      setStep("capture");
+      return;
+    }
+    avatarApi.get()
+      .then(({ data }) => {
+        setMeasurements(apiToMeasurements(data));
+        setStep("viewer");
+      })
+      .catch(() => {
+        // 404 → no tiene medidas configuradas → mostrar captura
+        setStep("capture");
+      });
+  }, [token]);
+
+  if (step === "loading") {
+    return (
+      <div
+        style={{
+          height: 300,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#bbb",
+          fontSize: 12,
+          letterSpacing: "0.1em",
+        }}
+      >
+        Cargando…
+      </div>
+    );
+  }
 
   if (step === "capture") {
     return (

@@ -28,7 +28,11 @@ export function ProductCard({ product }: { product: Product }) {
 
   function handleTryOn(e: React.MouseEvent) {
     e.preventDefault();
-    router.push(`/tryon?product=${product.id}`);
+    if (!token) {
+      router.push(`/login?product=${product.id}`);
+      return;
+    }
+    router.push(`/avatar/setup?product=${product.id}`);
   }
 
   async function handleFavorite(e: React.MouseEvent) {

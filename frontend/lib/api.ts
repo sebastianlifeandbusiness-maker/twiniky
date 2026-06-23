@@ -132,3 +132,58 @@ export const favoritesApi = {
   add: (productId: string) => api.post<{ message: string }>(`/favorites/${productId}`),
   remove: (productId: string) => api.delete(`/favorites/${productId}`),
 };
+
+export interface AvatarMeasurementsPayload {
+  height: number;
+  bust: number;
+  waist: number;
+  hips: number;
+  shoulder_width: number;
+  torso_length: number;
+  leg_length: number;
+  arm_length: number;
+  arm_girth: number;
+  thigh_girth: number;
+  calf_girth: number;
+  shoe_size: number;
+}
+
+export const avatarApi = {
+  get: () => api.get<AvatarMeasurementsPayload>("/avatar/measurements"),
+  save: (payload: AvatarMeasurementsPayload) =>
+    api.post<AvatarMeasurementsPayload>("/avatar/measurements", payload),
+};
+
+export function measurementsToApi(m: import("@/types").Measurements): AvatarMeasurementsPayload {
+  return {
+    height: m.height,
+    bust: m.bust,
+    waist: m.waist,
+    hips: m.hips,
+    shoulder_width: m.shoulderWidth,
+    torso_length: m.torsoLength,
+    leg_length: m.legLength,
+    arm_length: m.armLength,
+    arm_girth: m.armGirth,
+    thigh_girth: m.thighGirth,
+    calf_girth: m.calfGirth,
+    shoe_size: m.shoeSize,
+  };
+}
+
+export function apiToMeasurements(p: AvatarMeasurementsPayload): import("@/types").Measurements {
+  return {
+    height: p.height,
+    bust: p.bust,
+    waist: p.waist,
+    hips: p.hips,
+    shoulderWidth: p.shoulder_width,
+    torsoLength: p.torso_length,
+    legLength: p.leg_length,
+    armLength: p.arm_length,
+    armGirth: p.arm_girth,
+    thighGirth: p.thigh_girth,
+    calfGirth: p.calf_girth,
+    shoeSize: p.shoe_size,
+  };
+}

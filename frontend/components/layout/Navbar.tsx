@@ -183,7 +183,7 @@ export function Navbar() {
                   padding: "6px 14px", cursor: "pointer",
                 }}
               >
-                Salir
+                Cerrar sesión
               </button>
             </>
           ) : (
