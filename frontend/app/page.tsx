@@ -267,9 +267,70 @@ export default function HomePage() {
 }
 
 /* ── Strip de marcas con scroll automático ── */
+const BRAND_LOCAL_LOGOS: Record<string, string> = {
+  "Nike":           "/logos/nike.png",
+  "Adidas":         "/logos/adidas.png",
+  "Zara":           "/logos/zara.png",
+  "H&M":            "/logos/hm.png",
+  "Lacoste":        "/logos/lacoste.png",
+  "Tommy Hilfiger": "/logos/tommy.png",
+  "Calvin Klein":   "/logos/calvinklein.png",
+  "Levis":          "/logos/levis.png",
+  "New Balance":    "/logos/newbalance.png",
+  "Puma":           "/logos/puma.png",
+  "Diesel":         "/logos/diesel.png",
+  "Hugo Boss":      "/logos/hugoboss.png",
+  "Americanino":    "/logos/americanino.png",
+  "Caterpillar":    "/logos/caterpillar.png",
+  "Sparta":         "/logos/sparta.png",
+};
+
+function BrandItem({ brand }: { brand: Brand }) {
+  const [hovered, setHovered] = useState(false);
+  const localLogo = BRAND_LOCAL_LOGOS[brand.name];
+  if (localLogo) {
+    return (
+      <img
+        src={localLogo}
+        alt={brand.name}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          height: 42,
+          width: "auto",
+          maxWidth: 120,
+          objectFit: "contain",
+          flexShrink: 0,
+          filter: hovered ? "none" : "grayscale(100%) opacity(0.45)",
+          transition: "filter 0.25s",
+          userSelect: "none",
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        fontSize: 15,
+        fontWeight: 800,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        color: hovered ? "#111" : "#555",
+        flexShrink: 0,
+        transition: "color 0.25s",
+        userSelect: "none",
+      }}
+    >
+      {brand.name}
+    </span>
+  );
+}
+
 function BrandStrip({ brands }: { brands: Brand[] }) {
   const [offset, setOffset] = useState(0);
-  const names = [...brands, ...brands];
+  const doubled = [...brands, ...brands];
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -280,11 +341,9 @@ function BrandStrip({ brands }: { brands: Brand[] }) {
 
   return (
     <div style={{ overflow: "hidden", position: "relative" }}>
-      <div style={{ display: "flex", gap: 60, transform: `translateX(-${offset}px)`, transition: "none", whiteSpace: "nowrap" }}>
-        {names.map((b, i) => (
-          <span key={`${b.id}-${i}`} style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.22em", textTransform: "uppercase", color: "#bbb", flexShrink: 0 }}>
-            {b.name}
-          </span>
+      <div style={{ display: "flex", gap: 80, alignItems: "center", transform: `translateX(-${offset}px)`, transition: "none", whiteSpace: "nowrap" }}>
+        {doubled.map((b, i) => (
+          <BrandItem key={`${b.id}-${i}`} brand={b} />
         ))}
       </div>
     </div>
