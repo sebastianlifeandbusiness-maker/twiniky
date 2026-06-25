@@ -7,7 +7,8 @@ import { useAuthStore } from "@/lib/store/auth";
 import { useCartStore, cartCount } from "@/lib/store/cart";
 import { useBrandStore } from "@/lib/store/brand";
 import { useFavoritesStore } from "@/lib/store/favorites";
-import { favoritesApi } from "@/lib/api";
+import { useAlertsStore } from "@/lib/store/alerts";
+import { favoritesApi, stockAlertsApi } from "@/lib/api";
 
 const NAV_CATEGORIES = [
   { label: "Todos",       href: "/marketplace" },
@@ -26,18 +27,22 @@ export function Navbar() {
   const { brand, token: brandToken, clearBrand } = useBrandStore();
   const items = useCartStore((s) => s.items);
   const setAllFavorites = useFavoritesStore((s) => s.setAll);
+  const { count: alertCount, setCount: setAlertCount } = useAlertsStore();
   const [mounted, setMounted] = useState(false);
   const [search, setSearch] = useState("");
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Cargar favoritos cuando hay sesión de comprador
+  // Cargar favoritos y alertas cuando hay sesión de comprador
   useEffect(() => {
     if (!token) return;
     favoritesApi.list()
       .then(({ data }) => setAllFavorites(data.map((p) => p.id)))
       .catch(() => {});
-  }, [token, setAllFavorites]);
+    stockAlertsApi.list()
+      .then(({ data }) => setAlertCount(data.length))
+      .catch(() => {});
+  }, [token, setAllFavorites, setAlertCount]);
 
   const count = mounted ? cartCount(items) : 0;
 
@@ -173,6 +178,7 @@ export function Navbar() {
               <NavLink href="/marketplace">Marketplace</NavLink>
               <IconButton href="/favorites" label="Favoritos"><HeartIcon /></IconButton>
               <IconButton href="/tryon" label="Probador 3D"><MannequinIcon /></IconButton>
+              <BellIcon count={alertCount} />
               <CartIcon count={count} />
               <button
                 onClick={handleBuyerLogout}
@@ -305,6 +311,29 @@ function CartIcon({ count }: { count: number }) {
       </svg>
       {count > 0 && (
         <span style={{ position: "absolute", top: -6, right: -8, backgroundColor: "#111", color: "#fff", fontSize: 9, fontWeight: 700, minWidth: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: "0 3px" }}>
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function BellIcon({ count }: { count: number }) {
+  const [hov, setHov] = useState(false);
+  return (
+    <Link
+      href="/notifications"
+      title="Alertas de stock"
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{ position: "relative", display: "flex", alignItems: "center", color: hov ? "#111" : "#666", textDecoration: "none", transition: "color 0.15s" }}
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
+      {count > 0 && (
+        <span style={{ position: "absolute", top: -6, right: -8, backgroundColor: "#b45309", color: "#fff", fontSize: 9, fontWeight: 700, minWidth: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, padding: "0 3px" }}>
           {count > 99 ? "99+" : count}
         </span>
       )}

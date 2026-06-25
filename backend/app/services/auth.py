@@ -1,8 +1,13 @@
+import uuid
+from datetime import datetime, timezone
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import create_access_token, hash_password, verify_password
+from app.models.guest_stock_alert import GuestStockAlert
+from app.models.stock_alert import StockAlert
 from app.models.user import User
 from app.schemas.user import Token, UserCreate
 
@@ -24,6 +29,24 @@ class AuthService:
         self.db.add(user)
         await self.db.commit()
         await self.db.refresh(user)
+
+        # Migrar alertas de invitado al nuevo usuario
+        guest_result = await self.db.execute(
+            select(GuestStockAlert)
+            .where(GuestStockAlert.email == payload.email.lower().strip())
+            .where(GuestStockAlert.is_active.is_(True))
+        )
+        for guest_alert in guest_result.scalars().all():
+            self.db.add(StockAlert(
+                id=uuid.uuid4(),
+                user_id=user.id,
+                product_id=guest_alert.product_id,
+                size=guest_alert.size,
+                created_at=datetime.now(timezone.utc),
+            ))
+            guest_alert.is_active = False
+        await self.db.commit()
+
         return user
 
     async def login(self, email: str, password: str) -> Token:

@@ -139,6 +139,31 @@ export interface TryOnSelectionOut {
   selected_color: string | null;
 }
 
+export interface StockAlertOut {
+  id: string;
+  product_id: string;
+  size: string;
+  is_active: boolean;
+  created_at: string;
+  notified_at: string | null;
+  product_name: string | null;
+  product_image: string | null;
+  product_brand: string | null;
+}
+
+export const stockAlertsApi = {
+  list: () => api.get<StockAlertOut[]>("/stock-alerts/"),
+  create: (productId: string, size: string) =>
+    api.post<StockAlertOut>("/stock-alerts/", { product_id: productId, size }),
+  delete: (alertId: string) => api.delete(`/stock-alerts/${alertId}`),
+  createGuest: (email: string, productId: string, size: string) =>
+    api.post<{ message: string; email: string }>("/stock-alerts/guest", {
+      email,
+      product_id: productId,
+      size,
+    }),
+};
+
 export const tryonSelectionsApi = {
   getSelections: () => api.get<TryOnSelectionOut[]>("/tryon/selections/"),
   updateSelection: (zone: string, productId: string, selectedColor?: string | null) =>

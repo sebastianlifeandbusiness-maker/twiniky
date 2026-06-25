@@ -1,13 +1,14 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useProduct } from "@/lib/hooks/useProducts";
 import { useCartStore } from "@/lib/store/cart";
 import { useBrandStore } from "@/lib/store/brand";
 import { useAuthStore } from "@/lib/store/auth";
 import { useFavoritesStore } from "@/lib/store/favorites";
-import { favoritesApi } from "@/lib/api";
+import { useAlertsStore } from "@/lib/store/alerts";
+import { favoritesApi, stockAlertsApi } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { formatCLP } from "@/lib/utils/format";
 
@@ -23,11 +24,17 @@ export default function ProductDetailPage({ params }: Props) {
   const [added, setAdded] = useState(false);
   const [blockMsg, setBlockMsg] = useState<string | null>(null);
   const [favLoading, setFavLoading] = useState(false);
+  const [alertStatus, setAlertStatus] = useState<"idle" | "loading" | "success" | "conflict" | "error">("idle");
+  const [activeAlertId, setActiveAlertId] = useState<string | null>(null);
+  const [showGuestForm, setShowGuestForm] = useState(false);
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestStatus, setGuestStatus] = useState<"idle" | "loading" | "success" | "conflict" | "error">("idle");
   const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
   const { brand: activeBrand } = useBrandStore();
   const { token } = useAuthStore();
   const { ids: favIds, add: favAdd, remove: favRemove } = useFavoritesStore();
+  const { increment: alertIncrement, decrement: alertDecrement } = useAlertsStore();
 
   async function handleFavorite() {
     if (!product) return;
@@ -40,6 +47,57 @@ export default function ProductDetailPage({ params }: Props) {
       else { await favoritesApi.add(product.id); favAdd(product.id); }
     } catch { /* mantiene estado anterior */ }
     finally { setFavLoading(false); }
+  }
+
+  async function handleGuestSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!product || !guestEmail.trim()) return;
+    const size = selectedSize ?? (product.sizes.length === 0 ? "Unica" : null);
+    if (!size) return;
+    setGuestStatus("loading");
+    try {
+      await stockAlertsApi.createGuest(guestEmail.trim(), product.id, size);
+      setGuestStatus("success");
+    } catch (err: unknown) {
+      const s = (err as { response?: { status?: number } })?.response?.status;
+      setGuestStatus(s === 409 ? "conflict" : "error");
+    }
+  }
+
+  async function handleNotifyMe() {
+    if (!product) return;
+    if (!token) {
+      setShowGuestForm(true);
+      return;
+    }
+    const size = selectedSize ?? (product.sizes.length === 0 ? "Unica" : null);
+    if (!size) return;
+    setAlertStatus("loading");
+    try {
+      const { data } = await stockAlertsApi.create(product.id, size);
+      setActiveAlertId(data.id);
+      setAlertStatus("success");
+      alertIncrement();
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number; data?: { detail?: { alert_id?: string } } } })?.response?.status;
+      const detail = (err as { response?: { data?: { detail?: { alert_id?: string } } } })?.response?.data?.detail;
+      if (status === 409) {
+        setActiveAlertId(detail?.alert_id ?? null);
+        setAlertStatus("conflict");
+      } else {
+        setAlertStatus("error");
+      }
+    }
+  }
+
+  async function handleCancelAlert() {
+    if (!activeAlertId) return;
+    try {
+      await stockAlertsApi.delete(activeAlertId);
+      setAlertStatus("idle");
+      setActiveAlertId(null);
+      alertDecrement();
+    } catch { /* sin cambio */ }
   }
 
   function handleAddToCart() {
@@ -348,9 +406,12 @@ export default function ProductDetailPage({ params }: Props) {
                     key={size}
                     size={size}
                     selected={selectedSize === size}
-                    onClick={() =>
-                      setSelectedSize(size === selectedSize ? null : size)
-                    }
+                    onClick={() => {
+                      setSelectedSize(size === selectedSize ? null : size);
+                      setShowGuestForm(false);
+                      setGuestStatus("idle");
+                      setAlertStatus("idle");
+                    }}
                   />
                 ))}
               </div>
@@ -375,25 +436,142 @@ export default function ProductDetailPage({ params }: Props) {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <TryOnBtn productId={product.id} />
 
-            <AddToCartBtn
-              needsSize={product.sizes.length > 0 && !selectedSize}
-              added={added}
-              blocked={!!blockMsg}
-              onClick={handleAddToCart}
-            />
+            {/* Sin talla → siempre "Selecciona una talla" aunque el stock sea 0 */}
+            {product.sizes.length > 0 && !selectedSize ? (
+              <AddToCartBtn needsSize={true} added={false} blocked={false} onClick={() => {}} />
+            ) : product.stock === 0 ? (
+              <>
+                <BellBtn
+                  status={alertStatus}
+                  selectedSize={selectedSize}
+                  onNotify={handleNotifyMe}
+                  onCancel={handleCancelAlert}
+                />
 
-            {blockMsg && (
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: 11,
-                  color: "#dc2626",
-                  letterSpacing: "0.03em",
-                  textAlign: "center",
-                }}
-              >
-                {blockMsg}
-              </p>
+                {/* Feedback usuario registrado */}
+                {alertStatus === "success" && token && (
+                  <p style={{ margin: 0, fontSize: 11, color: "#16a34a", textAlign: "center", letterSpacing: "0.03em" }}>
+                    Te avisaremos cuando vuelva a estar disponible en talla {selectedSize ?? "Unica"}.
+                  </p>
+                )}
+                {alertStatus === "conflict" && token && (
+                  <p style={{ margin: 0, fontSize: 11, color: "#888", textAlign: "center" }}>
+                    Ya tienes una alerta activa.{" "}
+                    <a href="/notifications" style={{ color: "#111", textDecoration: "underline" }}>Ver mis alertas</a>
+                  </p>
+                )}
+                {alertStatus === "error" && token && (
+                  <p style={{ margin: 0, fontSize: 11, color: "#dc2626", textAlign: "center" }}>
+                    Error al guardar la alerta. Intenta de nuevo.
+                  </p>
+                )}
+
+                {/* Formulario inline para invitados */}
+                {showGuestForm && !token && (
+                  <div style={{ border: "1px solid #e8e8e8", padding: "14px 16px", backgroundColor: "#fafafa" }}>
+                    {guestStatus === "success" ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                        <p style={{ margin: 0, fontSize: 12, color: "#16a34a", textAlign: "center" }}>
+                          Listo. Te avisaremos a <strong>{guestEmail}</strong> cuando vuelva a estar disponible.
+                        </p>
+                        <p style={{ margin: 0, fontSize: 11, color: "#555", textAlign: "center", letterSpacing: "0.01em" }}>
+                          Quieres gestionar todas tus alertas de stock?
+                        </p>
+                        <a
+                          href={`/register?email=${encodeURIComponent(guestEmail)}`}
+                          style={{
+                            display: "block",
+                            padding: "10px 0",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            backgroundColor: "#111",
+                            color: "#fff",
+                            border: "1px solid #111",
+                            textAlign: "center",
+                            textDecoration: "none",
+                          }}
+                        >
+                          Crear cuenta gratis
+                        </a>
+                        <p style={{ margin: 0, fontSize: 11, color: "#aaa", textAlign: "center" }}>
+                          Ya tengo cuenta?{" "}
+                          <a href="/login/comprador" style={{ color: "#555", textDecoration: "underline" }}>
+                            Iniciar sesion
+                          </a>
+                        </p>
+                      </div>
+                    ) : guestStatus === "conflict" ? (
+                      <p style={{ margin: 0, fontSize: 12, color: "#888", textAlign: "center" }}>
+                        Ya existe una alerta para ese email y esta talla.
+                      </p>
+                    ) : (
+                      <form onSubmit={handleGuestSubmit} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <p style={{ margin: 0, fontSize: 11, color: "#555", textAlign: "center", letterSpacing: "0.02em" }}>
+                          Ingresa tu email y te avisamos cuando vuelva a stock
+                        </p>
+                        <input
+                          type="email"
+                          required
+                          placeholder="tu@email.com"
+                          value={guestEmail}
+                          onChange={(e) => setGuestEmail(e.target.value)}
+                          style={{
+                            padding: "9px 12px",
+                            fontSize: 12,
+                            border: "1px solid #ddd",
+                            outline: "none",
+                            width: "100%",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                        <button
+                          type="submit"
+                          disabled={guestStatus === "loading"}
+                          style={{
+                            padding: "10px 0",
+                            fontSize: 11,
+                            fontWeight: 600,
+                            letterSpacing: "0.08em",
+                            textTransform: "uppercase",
+                            backgroundColor: "#111",
+                            color: "#fff",
+                            border: "1px solid #111",
+                            cursor: guestStatus === "loading" ? "not-allowed" : "pointer",
+                            opacity: guestStatus === "loading" ? 0.6 : 1,
+                          }}
+                        >
+                          {guestStatus === "loading" ? "Guardando..." : "Notificarme"}
+                        </button>
+                        {guestStatus === "error" && (
+                          <p style={{ margin: 0, fontSize: 11, color: "#dc2626", textAlign: "center" }}>
+                            Error al guardar. Intenta de nuevo.
+                          </p>
+                        )}
+                        <p style={{ margin: 0, fontSize: 11, color: "#aaa", textAlign: "center" }}>
+                          Ya tienes cuenta?{" "}
+                          <a href="/login/comprador" style={{ color: "#555", textDecoration: "underline" }}>Inicia sesion</a>
+                        </p>
+                      </form>
+                    )}
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <AddToCartBtn
+                  needsSize={false}
+                  added={added}
+                  blocked={!!blockMsg}
+                  onClick={handleAddToCart}
+                />
+                {blockMsg && (
+                  <p style={{ margin: 0, fontSize: 11, color: "#dc2626", letterSpacing: "0.03em", textAlign: "center" }}>
+                    {blockMsg}
+                  </p>
+                )}
+              </>
             )}
           </div>
 
@@ -502,6 +680,74 @@ function AddToCartBtn({
         transition: "all 0.2s",
       }}
     >
+      {label}
+    </button>
+  );
+}
+
+function BellBtn({
+  status,
+  selectedSize,
+  onNotify,
+  onCancel,
+}: {
+  status: "idle" | "loading" | "success" | "conflict" | "error";
+  selectedSize: string | null;
+  onNotify: () => void;
+  onCancel: () => void;
+}) {
+  const [hov, setHov] = useState(false);
+
+  if (status === "success") {
+    return (
+      <button
+        onClick={onCancel}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        style={{
+          width: "100%", padding: "14px 0", fontSize: 11, fontWeight: 600,
+          letterSpacing: "0.2em", textTransform: "uppercase",
+          border: "1px solid #16a34a", backgroundColor: hov ? "#f0fdf4" : "#fff",
+          color: "#16a34a", cursor: "pointer", transition: "all 0.2s",
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+        Alerta activa · Cancelar
+      </button>
+    );
+  }
+
+  const isLoading = status === "loading";
+  const label = isLoading
+    ? "Guardando alerta..."
+    : selectedSize
+    ? `Notificarme — talla ${selectedSize}`
+    : "Notificarme cuando llegue";
+
+  return (
+    <button
+      disabled={isLoading}
+      onClick={onNotify}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        width: "100%", padding: "14px 0", fontSize: 11, fontWeight: 600,
+        letterSpacing: "0.2em", textTransform: "uppercase",
+        border: "1px solid #111", backgroundColor: hov && !isLoading ? "#111" : "transparent",
+        color: hov && !isLoading ? "#fff" : "#111",
+        cursor: isLoading ? "not-allowed" : "pointer",
+        opacity: isLoading ? 0.4 : 1, transition: "all 0.2s",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+      }}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
       {label}
     </button>
   );

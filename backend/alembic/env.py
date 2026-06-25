@@ -16,6 +16,8 @@ import app.models.waitlist  # noqa
 import app.models.favorite  # noqa
 import app.models.avatar  # noqa
 import app.models.tryon_selection  # noqa
+import app.models.stock_alert  # noqa
+import app.models.guest_stock_alert  # noqa
 
 config = context.config
 

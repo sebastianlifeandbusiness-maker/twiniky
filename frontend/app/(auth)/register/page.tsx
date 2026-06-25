@@ -11,8 +11,9 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const product = searchParams.get("product");
+  const emailParam = searchParams.get("email") ?? "";
   const setAuth = useAuthStore((s) => s.setAuth);
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: emailParam, password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
