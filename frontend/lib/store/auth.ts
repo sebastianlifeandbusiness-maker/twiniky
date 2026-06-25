@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User } from "@/types";
+import { useTryOnStore } from "./tryon";
 
 interface AuthState {
   user: User | null;
@@ -15,10 +16,12 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       setAuth: (user, token) => {
+        useTryOnStore.getState().clearAll();
         localStorage.setItem("token", token);
         set({ user, token });
       },
       logout: () => {
+        useTryOnStore.getState().clearAll();
         localStorage.removeItem("token");
         set({ user: null, token: null });
       },

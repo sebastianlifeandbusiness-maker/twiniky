@@ -15,6 +15,7 @@ import app.models.brand  # noqa
 import app.models.waitlist  # noqa
 import app.models.favorite  # noqa
 import app.models.avatar  # noqa
+import app.models.tryon_selection  # noqa
 
 config = context.config
 

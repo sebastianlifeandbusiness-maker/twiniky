@@ -127,6 +127,29 @@ export const waitlistApi = {
     api.post<{ message: string }>("/waitlist/", { email }),
 };
 
+export interface TryOnSelectionOut {
+  zone: string;
+  product_id: string | null;
+  name: string | null;
+  image_url: string | null;
+  category: string | null;
+  color: string | null;
+  brand: string | null;
+  price: string | null;
+  selected_color: string | null;
+}
+
+export const tryonSelectionsApi = {
+  getSelections: () => api.get<TryOnSelectionOut[]>("/tryon/selections/"),
+  updateSelection: (zone: string, productId: string, selectedColor?: string | null) =>
+    api.put<TryOnSelectionOut>(`/tryon/selections/${zone}`, {
+      product_id: productId,
+      selected_color: selectedColor ?? null,
+    }),
+  deleteSelection: (zone: string) =>
+    api.delete(`/tryon/selections/${zone}`),
+};
+
 export const favoritesApi = {
   list: () => api.get<import("@/types").Product[]>("/favorites/"),
   add: (productId: string) => api.post<{ message: string }>(`/favorites/${productId}`),

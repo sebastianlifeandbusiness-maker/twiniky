@@ -1,12 +1,14 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import delete as sa_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.brands import get_current_brand
 from app.db.session import get_db
 from app.models.brand import Brand
 from app.models.product import Product
+from app.models.tryon_selection import TryOnSelection
 from app.schemas.brand import BrandProductCreate
 from app.schemas.product import ProductOut, ProductUpdate
 from app.services.product import ProductService
@@ -81,5 +83,6 @@ async def delete_product(
     product = await ProductService(db).get_or_404(product_id)
     if product.brand_id != current_brand.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No puedes eliminar productos de otra marca.")
+    await db.execute(sa_delete(TryOnSelection).where(TryOnSelection.product_id == product_id))
     await db.delete(product)
     await db.commit()

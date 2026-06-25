@@ -15,7 +15,7 @@ import {
   type ZoneId,
   type ZoneGarment,
 } from "@/lib/store/tryon";
-import { avatarApi, apiToMeasurements } from "@/lib/api";
+import { avatarApi, apiToMeasurements, tryonSelectionsApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
 import type { Measurements } from "@/types";
 
@@ -135,13 +135,21 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
   const [measurements, setMeasurements] = useState<Measurements>(initialMeasurements);
 
   const { token } = useAuthStore();
-  const { garments, setGarment, removeGarment, setOverrideColor } = useTryOnStore();
+  const { garments, setGarment, removeGarment, setOverrideColor, loadFromServer } = useTryOnStore();
 
   // Carga medidas desde API al montar (override de las medidas iniciales)
   useEffect(() => {
     if (!token) return;
     avatarApi.get()
       .then(({ data }) => setMeasurements(apiToMeasurements(data)))
+      .catch(() => {});
+  }, [token]);
+
+  // Carga selecciones guardadas del usuario al montar
+  useEffect(() => {
+    if (!token) return;
+    tryonSelectionsApi.getSelections()
+      .then(({ data }) => loadFromServer(data))
       .catch(() => {});
   }, [token]);
 
