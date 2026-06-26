@@ -39,7 +39,7 @@ export default function LoginSelectorPage() {
           ← Volver al inicio
         </Link>
 
-        {(message === "tryon" || productParam) && (
+        {message === "tryon" && (
           <div
             style={{
               marginBottom: 28,
@@ -52,7 +52,7 @@ export default function LoginSelectorPage() {
               lineHeight: 1.5,
             }}
           >
-            Inicia sesión para usar el Probador Virtual
+            Crea una cuenta para usar el Probador Virtual
           </div>
         )}
 

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { avatarApi, apiToMeasurements, measurementsToApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
+import { useBrandStore } from "@/lib/store/brand";
 import type { Measurements } from "@/types";
 
 const DEFAULT_MEASUREMENTS: Measurements = {
@@ -54,6 +55,7 @@ function AvatarSetupForm() {
   const searchParams = useSearchParams();
   const productId = searchParams.get("product");
   const { token } = useAuthStore();
+  const { token: brandToken } = useBrandStore();
 
   const [loading, setLoading] = useState(true);
   const [hasExisting, setHasExisting] = useState(false);
@@ -62,8 +64,13 @@ function AvatarSetupForm() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) {
-      router.replace("/login?redirect=/avatar/setup");
+    if (!token && !brandToken) {
+      router.replace("/login?message=tryon");
+      return;
+    }
+    if (brandToken && !token) {
+      // Marcas no necesitan configurar avatar → ir directo al probador
+      router.replace(productId ? `/tryon?product=${productId}` : "/tryon");
       return;
     }
     avatarApi.get()
@@ -81,7 +88,7 @@ function AvatarSetupForm() {
         // 404 → primer uso, mostrar form con defaults
         setLoading(false);
       });
-  }, [token, router, productId]);
+  }, [token, brandToken, router, productId]);
 
   async function handleSave() {
     setSaving(true);

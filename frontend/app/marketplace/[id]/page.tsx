@@ -755,10 +755,21 @@ function BellBtn({
 
 function TryOnBtn({ productId }: { productId: string }) {
   const router = useRouter();
+  const { token } = useAuthStore();
+  const { token: brandToken } = useBrandStore();
   const [hov, setHov] = useState(false);
+
+  function handleClick() {
+    if (!token && !brandToken) {
+      router.push(`/login?message=tryon`);
+      return;
+    }
+    router.push(`/tryon?product=${productId}`);
+  }
+
   return (
     <button
-      onClick={() => router.push(`/tryon?product=${productId}`)}
+      onClick={handleClick}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
       style={{

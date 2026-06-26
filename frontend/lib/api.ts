@@ -107,6 +107,49 @@ export interface BrandOrderOut {
   created_at: string;
 }
 
+export interface TopProduct {
+  name: string;
+  quantity: number;
+}
+
+export interface SalesByMonth {
+  month: string;
+  total: number;
+}
+
+export interface BrandStats {
+  total_orders: number;
+  total_revenue: number;
+  total_products: number;
+  top_products: TopProduct[];
+  sales_by_month: SalesByMonth[];
+}
+
+export interface StockAlertBySize {
+  size: string;
+  count: number;
+}
+
+export interface ProductStockAlert {
+  product_id: string;
+  product_name: string;
+  product_image: string | null;
+  sizes_waiting: StockAlertBySize[];
+  total_waiting: number;
+}
+
+export interface BrandProfilePayload {
+  name?: string;
+  description?: string;
+  logo_url?: string;
+}
+
+export interface BrandCredentialsPayload {
+  email?: string;
+  current_password: string;
+  new_password?: string;
+}
+
 export const brandsApi = {
   register: (payload: BrandCreatePayload) =>
     api.post<Brand>("/brands/register", payload),
@@ -120,6 +163,14 @@ export const brandsApi = {
     brandsAxios.get<BrandOrderOut[]>(`/brands/${brandId}/orders/`),
   getMe: () =>
     brandsAxios.get<Brand>("/brands/me"),
+  getStats: () =>
+    brandsAxios.get<BrandStats>("/brands/me/stats"),
+  getStockAlerts: () =>
+    brandsAxios.get<ProductStockAlert[]>("/brands/me/stock-alerts"),
+  updateProfile: (payload: BrandProfilePayload) =>
+    brandsAxios.patch<Brand>("/brands/me/profile", payload),
+  updateCredentials: (payload: BrandCredentialsPayload) =>
+    brandsAxios.patch<Brand>("/brands/me/credentials", payload),
 };
 
 export const waitlistApi = {

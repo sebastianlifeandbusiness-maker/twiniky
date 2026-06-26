@@ -2,10 +2,11 @@
 
 import dynamic from "next/dynamic";
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { BodyCapture } from "@/components/tryon/BodyCapture";
 import { avatarApi, apiToMeasurements } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
+import { useBrandStore } from "@/lib/store/brand";
 import type { Measurements } from "@/types";
 
 const TryOnViewer = dynamic(
@@ -42,14 +43,21 @@ const DEFAULT_MEASUREMENTS: Measurements = {
 function TryOnContent() {
   const searchParams = useSearchParams();
   const productId = searchParams.get("product");
+  const router = useRouter();
   const { token } = useAuthStore();
+  const { token: brandToken } = useBrandStore();
 
   const [step, setStep] = useState<"loading" | "capture" | "viewer">("loading");
   const [measurements, setMeasurements] = useState<Measurements>(DEFAULT_MEASUREMENTS);
 
   useEffect(() => {
-    if (!token) {
-      setStep("capture");
+    if (!token && !brandToken) {
+      router.replace("/login?message=tryon");
+      return;
+    }
+    if (brandToken && !token) {
+      // Marcas no tienen avatar configurado → viewer con medidas por defecto
+      setStep("viewer");
       return;
     }
     avatarApi.get()
@@ -58,10 +66,9 @@ function TryOnContent() {
         setStep("viewer");
       })
       .catch(() => {
-        // 404 → no tiene medidas configuradas → mostrar captura
         setStep("capture");
       });
-  }, [token]);
+  }, [token, brandToken, router]);
 
   if (step === "loading") {
     return (

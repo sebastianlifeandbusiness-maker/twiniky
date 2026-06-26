@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { Product } from "@/types";
 import { formatCLP } from "@/lib/utils/format";
 import { useAuthStore } from "@/lib/store/auth";
+import { useBrandStore } from "@/lib/store/brand";
 import { useFavoritesStore } from "@/lib/store/favorites";
 import { favoritesApi } from "@/lib/api";
 
@@ -16,6 +17,7 @@ function isNew(createdAt: string) {
 export function ProductCard({ product }: { product: Product }) {
   const router = useRouter();
   const { token } = useAuthStore();
+  const { token: brandToken } = useBrandStore();
   const { ids, add, remove } = useFavoritesStore();
   const [hovered, setHovered] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
@@ -28,8 +30,12 @@ export function ProductCard({ product }: { product: Product }) {
 
   function handleTryOn(e: React.MouseEvent) {
     e.preventDefault();
-    if (!token) {
-      router.push(`/login?product=${product.id}`);
+    if (!token && !brandToken) {
+      router.push(`/login?product=${product.id}&message=tryon`);
+      return;
+    }
+    if (brandToken && !token) {
+      router.push(`/tryon?product=${product.id}`);
       return;
     }
     router.push(`/avatar/setup?product=${product.id}`);
