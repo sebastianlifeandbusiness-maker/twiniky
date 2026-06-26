@@ -25,8 +25,11 @@ class ProductService:
         q: str | None,
         skip: int,
         limit: int,
+        brand_id: uuid.UUID | None = None,
     ) -> list[Product]:
         query = select(Product)
+        if brand_id:
+            query = query.where(Product.brand_id == brand_id)
         if category:
             query = query.where(Product.category == category)
         if q:

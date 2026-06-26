@@ -248,7 +248,7 @@ export default function BrandDashboardPage() {
             return (
               <button
                 key={id}
-                onClick={() => setSection(id)}
+                onClick={() => id === "tryon" ? router.push("/tryon") : setSection(id)}
                 style={{
                   width: "100%",
                   display: "flex",

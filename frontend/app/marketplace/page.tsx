@@ -30,10 +30,11 @@ function MarketplaceInner() {
   const searchParams = useSearchParams();
   const urlCategory = searchParams.get("category") ?? "Todos";
   const urlSearch   = searchParams.get("q") ?? "";
+  const urlBrandId  = searchParams.get("brand_id") ?? null;
 
   const [selectedSizes,    setSelectedSizes]    = useState<string[]>([]);
   const [priceRange,       setPriceRange]       = useState<[number, number]>([0, 120000]);
-  const [selectedBrands,   setSelectedBrands]   = useState<string[]>([]);
+  const [selectedBrands,   setSelectedBrands]   = useState<string[]>(urlBrandId ? [urlBrandId] : []);
   const [selectedColors,   setSelectedColors]   = useState<string[]>([]);
   const [selectedOccasions,setSelectedOccasions]= useState<string[]>([]);
   const [sortBy,           setSortBy]           = useState("newest");
@@ -44,6 +45,7 @@ function MarketplaceInner() {
   const { data: raw, isLoading, isError, refetch } = useProducts({
     category: urlCategory !== "Todos" ? urlCategory : undefined,
     q: search || undefined,
+    brand_id: urlBrandId || undefined,
     limit: 100,
   });
 
@@ -58,6 +60,16 @@ function MarketplaceInner() {
     });
     return Object.entries(map).map(([id, { name, count }]) => ({ id, name, count }));
   }, [raw]);
+
+  const urlBrandName = useMemo(() => {
+    if (!urlBrandId) return null;
+    return brandOptions.find((b) => b.id === urlBrandId)?.name ?? null;
+  }, [urlBrandId, brandOptions]);
+
+  const visibleBrandOptions = useMemo(() => {
+    if (urlBrandId) return brandOptions.filter((b) => b.id === urlBrandId);
+    return brandOptions;
+  }, [urlBrandId, brandOptions]);
 
   const products = useMemo(() => {
     if (!raw) return [];
@@ -89,7 +101,7 @@ function MarketplaceInner() {
   }
   function clearFilters() {
     setSelectedSizes([]);
-    setSelectedBrands([]);
+    setSelectedBrands(urlBrandId ? [urlBrandId] : []);
     setSelectedColors([]);
     setSelectedOccasions([]);
     setPriceRange([0, 120000]);
@@ -124,6 +136,18 @@ function MarketplaceInner() {
         </div>
       </div>
 
+      {/* ── Banner modo marca ── */}
+      {urlBrandId && (
+        <div style={{ backgroundColor: "#f0ede8", borderBottom: "1px solid #e0dbd3", padding: "10px 40px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 12, color: "#555" }}>
+            Selecciona una prenda de tu catálogo{urlBrandName ? ` · ${urlBrandName}` : ""}
+          </span>
+          <a href="/marketplace" style={{ fontSize: 11, color: "#888", textDecoration: "underline", textUnderlineOffset: 2 }}>
+            Ver todo el catálogo
+          </a>
+        </div>
+      )}
+
       {/* ── Body: sidebar + products ── */}
       <div style={{ display: "flex", maxWidth: 1440, margin: "0 auto" }}>
 
@@ -139,7 +163,7 @@ function MarketplaceInner() {
               priceRange={priceRange}
               onPriceRangeChange={setPriceRange}
               onClear={clearFilters}
-              brandOptions={brandOptions}
+              brandOptions={urlBrandId ? [] : visibleBrandOptions}
               selectedBrands={selectedBrands}
               onBrandChange={toggleBrand}
               selectedColors={selectedColors}

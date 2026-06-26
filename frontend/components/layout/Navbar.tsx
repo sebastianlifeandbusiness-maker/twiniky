@@ -59,9 +59,10 @@ export function Navbar() {
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    if (search.trim()) {
-      router.push(`/marketplace?q=${encodeURIComponent(search.trim())}`);
-    }
+    if (!search.trim()) return;
+    const params = new URLSearchParams({ q: search.trim() });
+    if (brandToken && brand) params.set("brand_id", brand.id);
+    router.push(`/marketplace?${params.toString()}`);
   }
 
   return (
@@ -101,8 +102,8 @@ export function Navbar() {
           Twiniky
         </Link>
 
-        {/* Search — centro, solo para invitado y comprador */}
-        {mounted && !brandToken && (
+        {/* Search — centro */}
+        {mounted && (
           <form
             onSubmit={handleSearch}
             style={{
@@ -213,8 +214,8 @@ export function Navbar() {
         </div>
       </nav>
 
-      {/* ── Segunda fila: categorías (solo invitado/comprador) ── */}
-      {mounted && !brandToken && (
+      {/* ── Segunda fila: categorías ── */}
+      {mounted && (
         <div style={{ borderTop: "1px solid #f0f0f0" }}>
           <div
             style={{
@@ -227,6 +228,11 @@ export function Navbar() {
             }}
           >
             {NAV_CATEGORIES.map(({ label, href }) => {
+              const fullHref = brandToken && brand
+                ? (href === "/marketplace"
+                    ? `/marketplace?brand_id=${brand.id}`
+                    : `${href}&brand_id=${brand.id}`)
+                : href;
               const isActive =
                 pathname === "/marketplace" &&
                 (href === "/marketplace"
@@ -235,7 +241,7 @@ export function Navbar() {
               return (
                 <Link
                   key={label}
-                  href={href}
+                  href={fullHref}
                   style={{
                     padding: "9px 14px",
                     fontSize: 10,

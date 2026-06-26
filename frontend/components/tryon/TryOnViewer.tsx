@@ -17,6 +17,7 @@ import {
 } from "@/lib/store/tryon";
 import { avatarApi, apiToMeasurements, tryonSelectionsApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
+import { useBrandStore } from "@/lib/store/brand";
 import type { Measurements } from "@/types";
 
 const SCENES = [
@@ -135,6 +136,7 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
   const [measurements, setMeasurements] = useState<Measurements>(initialMeasurements);
 
   const { token } = useAuthStore();
+  const { brand: brandSession, token: brandToken } = useBrandStore();
   const { garments, setGarment, removeGarment, setOverrideColor, loadFromServer } = useTryOnStore();
 
   // Carga medidas desde API al montar (override de las medidas iniciales)
@@ -303,7 +305,11 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
                 </div>
               ) : (
                 <a
-                  href={`/marketplace?category=${zone.primaryCategory}`}
+                  href={
+                    brandToken && brandSession
+                      ? `/marketplace?category=${zone.primaryCategory}&brand_id=${brandSession.id}`
+                      : `/marketplace?category=${zone.primaryCategory}`
+                  }
                   style={{
                     display: "flex",
                     flexDirection: "column",

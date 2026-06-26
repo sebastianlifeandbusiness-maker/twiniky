@@ -25,11 +25,14 @@ router = APIRouter()
 async def list_products(
     category: str | None = Query(None),
     q: str | None = Query(None),
+    brand_id: uuid.UUID | None = Query(None),
     skip: int = 0,
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
 ):
-    return await ProductService(db).list_products(category=category, q=q, skip=skip, limit=limit)
+    return await ProductService(db).list_products(
+        category=category, q=q, skip=skip, limit=limit, brand_id=brand_id
+    )
 
 
 @router.get("/{product_id}", response_model=ProductOut)
