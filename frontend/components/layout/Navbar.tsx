@@ -88,7 +88,7 @@ export function Navbar() {
       >
         {/* Logo */}
         <Link
-          href="/marketplace"
+          href={mounted && brandToken ? "/marketplace" : "/"}
           style={{
             fontSize: 16,
             fontWeight: 700,

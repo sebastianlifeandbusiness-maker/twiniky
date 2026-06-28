@@ -292,6 +292,9 @@ const BRAND_LOCAL_LOGOS: Record<string, string> = {
   "Americanino":    "/logos/americanino.png",
   "Caterpillar":    "/logos/caterpillar.png",
   "Sparta":         "/logos/sparta.png",
+  "Klazi":          "/logos/klazi.png",
+  "MAUI":           "/logos/maui.png",
+  "Ferouch":        "/logos/ferouch.png",
 };
 
 function BrandItem({ brand }: { brand: Brand }) {
