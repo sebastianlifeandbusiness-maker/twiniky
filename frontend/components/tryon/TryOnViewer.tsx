@@ -24,42 +24,30 @@ const SCENES = [
   {
     id: "studio",
     label: "Estudio",
+    imgPath: "/scenes/studio.jpg",
     bg: "#f0eee9",
     swatch: "#f0eee9",
-    ambientInt: 0.9,
-    dirInt: 0.9,
-    dirColor: "#ffffff",
-    extraLight: null,
   },
   {
     id: "office",
     label: "Oficina",
+    imgPath: "/scenes/office.jpg",
     bg: "#e6e0d2",
     swatch: "#e6e0d2",
-    ambientInt: 0.7,
-    dirInt: 0.75,
-    dirColor: "#fff5dc",
-    extraLight: null,
   },
   {
     id: "street",
     label: "Calle",
+    imgPath: "/scenes/street.jpg",
     bg: "#b0bec8",
     swatch: "#b0bec8",
-    ambientInt: 0.6,
-    dirInt: 0.65,
-    dirColor: "#cde0f0",
-    extraLight: null,
   },
   {
     id: "party",
     label: "Fiesta",
+    imgPath: "/scenes/party.jpg",
     bg: "#14082a",
     swatch: "#14082a",
-    ambientInt: 0.15,
-    dirInt: 0.3,
-    dirColor: "#cc55ff",
-    extraLight: { position: [0, 2, 1] as [number, number, number], color: "#ff3890", intensity: 2 },
   },
 ] as const;
 
@@ -84,30 +72,20 @@ interface Props {
 
 function SceneContents({
   measurements,
-  scene,
   garmentList,
 }: {
   measurements: Measurements;
-  scene: (typeof SCENES)[number];
   garmentList: Array<{ category: string; effectiveColor: string | null }>;
 }) {
   return (
     <>
-      <color attach="background" args={[scene.bg]} />
-      <ambientLight intensity={scene.ambientInt} />
+      <ambientLight intensity={0.8} color="#ffffff" />
       <directionalLight
-        position={[3, 5, 3]}
-        intensity={scene.dirInt}
-        color={scene.dirColor}
+        position={[5, 10, 5]}
+        intensity={1.0}
+        color="#ffffff"
         castShadow
       />
-      {scene.extraLight && (
-        <pointLight
-          position={scene.extraLight.position}
-          color={scene.extraLight.color}
-          intensity={scene.extraLight.intensity}
-        />
-      )}
       <MannequinFigure measurements={measurements} />
       {garmentList.map((g, i) => (
         <GarmentOverlay
@@ -368,13 +346,15 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
           overflow: "hidden",
           border: "1px solid #e4e4e0",
           backgroundColor: scene.bg,
+          backgroundImage: `url(${scene.imgPath})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
         }}
       >
-        <Canvas camera={{ position: [0, 0.9, 2.8], fov: 48 }}>
+        <Canvas camera={{ position: [0, 0.9, 2.8], fov: 48 }} gl={{ alpha: true }}>
           <Suspense fallback={null}>
             <SceneContents
               measurements={measurements}
-              scene={scene}
               garmentList={garmentList}
             />
           </Suspense>
