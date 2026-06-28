@@ -67,7 +67,7 @@ export default function LoginSelectorPage() {
             textAlign: "center",
           }}
         >
-          ¿Quién eres?
+          Bienvenido a Twiniky
         </h1>
         <p
           style={{
@@ -77,7 +77,7 @@ export default function LoginSelectorPage() {
             textAlign: "center",
           }}
         >
-          Elige tu tipo de cuenta para continuar
+          Elige cómo quieres acceder
         </p>
 
         <div

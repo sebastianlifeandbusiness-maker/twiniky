@@ -2,15 +2,24 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { ProductCard } from "@/components/marketplace/ProductCard";
 import { ProductFilters, type BrandOption } from "@/components/marketplace/ProductFilters";
+import { useBrandStore } from "@/lib/store/brand";
 import type { Brand, Product } from "@/types";
 
 const MAX_PRICE = 120000;
 
 export default function HomePage() {
+  const router = useRouter();
+  const { token: brandToken } = useBrandStore();
+
+  useEffect(() => {
+    if (brandToken) router.push("/brands/dashboard");
+  }, [brandToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const { data: brands } = useQuery<Brand[]>({
     queryKey: ["brands-strip"],
     queryFn: async () => { const { data } = await api.get("/brands/"); return data; },

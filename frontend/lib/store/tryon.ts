@@ -23,13 +23,23 @@ interface TryOnStore {
   loadFromServer: (selections: TryOnSelectionOut[]) => void;
 }
 
+function isBrandSession() {
+  return typeof window !== "undefined" && !!localStorage.getItem("brand_token");
+}
+
 export const useTryOnStore = create<TryOnStore>()((set, get) => ({
   garments: {},
   setGarment: (zoneId, garment) => {
     set((s) => ({ garments: { ...s.garments, [zoneId]: garment } }));
-    import("@/lib/api").then(({ tryonSelectionsApi }) =>
-      tryonSelectionsApi.updateSelection(zoneId, garment.productId, null).catch(() => {})
-    );
+    if (isBrandSession()) {
+      import("@/lib/api").then(({ brandTryonSelectionsApi }) =>
+        brandTryonSelectionsApi.updateSelection(zoneId, garment.productId, null).catch(() => {})
+      );
+    } else {
+      import("@/lib/api").then(({ tryonSelectionsApi }) =>
+        tryonSelectionsApi.updateSelection(zoneId, garment.productId, null).catch(() => {})
+      );
+    }
   },
   removeGarment: (zoneId) => {
     set((s) => {
@@ -37,9 +47,15 @@ export const useTryOnStore = create<TryOnStore>()((set, get) => ({
       delete next[zoneId];
       return { garments: next };
     });
-    import("@/lib/api").then(({ tryonSelectionsApi }) =>
-      tryonSelectionsApi.deleteSelection(zoneId).catch(() => {})
-    );
+    if (isBrandSession()) {
+      import("@/lib/api").then(({ brandTryonSelectionsApi }) =>
+        brandTryonSelectionsApi.deleteSelection(zoneId).catch(() => {})
+      );
+    } else {
+      import("@/lib/api").then(({ tryonSelectionsApi }) =>
+        tryonSelectionsApi.deleteSelection(zoneId).catch(() => {})
+      );
+    }
   },
   setOverrideColor: (zoneId, color) => {
     set((s) => {
@@ -49,9 +65,15 @@ export const useTryOnStore = create<TryOnStore>()((set, get) => ({
     });
     const g = get().garments[zoneId];
     if (g) {
-      import("@/lib/api").then(({ tryonSelectionsApi }) =>
-        tryonSelectionsApi.updateSelection(zoneId, g.productId, color).catch(() => {})
-      );
+      if (isBrandSession()) {
+        import("@/lib/api").then(({ brandTryonSelectionsApi }) =>
+          brandTryonSelectionsApi.updateSelection(zoneId, g.productId, color).catch(() => {})
+        );
+      } else {
+        import("@/lib/api").then(({ tryonSelectionsApi }) =>
+          tryonSelectionsApi.updateSelection(zoneId, g.productId, color).catch(() => {})
+        );
+      }
     }
   },
   clearAll: () => set({ garments: {} }),

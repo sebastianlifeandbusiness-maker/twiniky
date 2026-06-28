@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from jose import jwt, JWTError
 from app.db.session import get_db
 from app.models.brand import Brand
+from app.models.brand_tryon_selection import BrandTryOnSelection
 from app.models.guest_stock_alert import GuestStockAlert
 from app.models.order import Order
 from app.models.product import Product
@@ -280,6 +281,126 @@ async def update_brand_credentials(
     await db.commit()
     await db.refresh(current_brand)
     return current_brand
+
+
+ALL_ZONES = ["upper", "lower", "dress", "shoes", "accessories"]
+
+class ZoneSelectionOut(BaseModel):
+    zone: str
+    product_id: str | None
+    name: str | None
+    image_url: str | None
+    category: str | None
+    color: str | None
+    brand: str | None
+    price: str | None
+    selected_color: str | None
+
+class TryOnSelectionIn(BaseModel):
+    product_id: str
+    selected_color: str | None = None
+
+
+@router.get("/me/tryon-selections", response_model=list[ZoneSelectionOut])
+async def get_brand_tryon_selections(
+    current_brand: Brand = Depends(get_current_brand),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(BrandTryOnSelection, Product)
+        .outerjoin(Product, BrandTryOnSelection.product_id == Product.id)
+        .where(BrandTryOnSelection.brand_id == current_brand.id)
+    )
+    rows = {sel.zone: (sel, prod) for sel, prod in result.all()}
+    out = []
+    for zone in ALL_ZONES:
+        if zone in rows and rows[zone][1] is not None:
+            sel, prod = rows[zone]
+            out.append(ZoneSelectionOut(
+                zone=zone,
+                product_id=str(prod.id),
+                name=prod.name,
+                image_url=prod.image_urls[0] if prod.image_urls else None,
+                category=prod.category,
+                color=prod.color,
+                brand=prod.brand,
+                price=str(prod.price),
+                selected_color=sel.selected_color,
+            ))
+        else:
+            out.append(ZoneSelectionOut(
+                zone=zone, product_id=None, name=None,
+                image_url=None, category=None, color=None,
+                brand=None, price=None, selected_color=None,
+            ))
+    return out
+
+
+@router.put("/me/tryon-selections/{zone}", response_model=ZoneSelectionOut)
+async def update_brand_tryon_selection(
+    zone: str,
+    payload: TryOnSelectionIn,
+    current_brand: Brand = Depends(get_current_brand),
+    db: AsyncSession = Depends(get_db),
+):
+    if zone not in ALL_ZONES:
+        raise HTTPException(status_code=400, detail="Zona inválida.")
+    try:
+        product_id = uuid.UUID(payload.product_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="product_id inválido.")
+    product = await db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Producto no encontrado.")
+    result = await db.execute(
+        select(BrandTryOnSelection)
+        .where(BrandTryOnSelection.brand_id == current_brand.id)
+        .where(BrandTryOnSelection.zone == zone)
+    )
+    sel = result.scalar_one_or_none()
+    if sel:
+        sel.product_id = product_id
+        sel.selected_color = payload.selected_color
+    else:
+        sel = BrandTryOnSelection(
+            id=uuid.uuid4(),
+            brand_id=current_brand.id,
+            zone=zone,
+            product_id=product_id,
+            selected_color=payload.selected_color,
+        )
+        db.add(sel)
+    await db.commit()
+    return ZoneSelectionOut(
+        zone=zone,
+        product_id=str(product.id),
+        name=product.name,
+        image_url=product.image_urls[0] if product.image_urls else None,
+        category=product.category,
+        color=product.color,
+        brand=product.brand,
+        price=str(product.price),
+        selected_color=payload.selected_color,
+    )
+
+
+@router.delete("/me/tryon-selections/{zone}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_brand_tryon_selection(
+    zone: str,
+    current_brand: Brand = Depends(get_current_brand),
+    db: AsyncSession = Depends(get_db),
+):
+    if zone not in ALL_ZONES:
+        raise HTTPException(status_code=400, detail="Zona inválida.")
+    result = await db.execute(
+        select(BrandTryOnSelection)
+        .where(BrandTryOnSelection.brand_id == current_brand.id)
+        .where(BrandTryOnSelection.zone == zone)
+    )
+    sel = result.scalar_one_or_none()
+    if sel:
+        await db.delete(sel)
+        await db.commit()
 
 
 @router.get("/{brand_id}", response_model=BrandOut)

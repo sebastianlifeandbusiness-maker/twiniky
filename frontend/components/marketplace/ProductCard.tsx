@@ -102,40 +102,42 @@ export function ProductCard({ product }: { product: Product }) {
         )}
 
         {/* Botón favorito — top right */}
-        <button
-          onClick={handleFavorite}
-          title={isFav ? "Quitar de favoritos" : "Agregar a favoritos"}
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 8,
-            width: 30,
-            height: 30,
-            borderRadius: "50%",
-            backgroundColor: "rgba(255,255,255,0.9)",
-            border: "none",
-            cursor: favLoading ? "wait" : "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            opacity: hovered || isFav ? 1 : 0,
-            transition: "opacity 0.2s",
-          }}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill={isFav ? "#e11d48" : "none"}
-            stroke={isFav ? "#e11d48" : "#555"}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+        {!brandToken && (
+          <button
+            onClick={handleFavorite}
+            title={isFav ? "Quitar de favoritos" : "Agregar a favoritos"}
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              backgroundColor: "rgba(255,255,255,0.9)",
+              border: "none",
+              cursor: favLoading ? "wait" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              opacity: hovered || isFav ? 1 : 0,
+              transition: "opacity 0.2s",
+            }}
           >
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-          </svg>
-        </button>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill={isFav ? "#e11d48" : "none"}
+              stroke={isFav ? "#e11d48" : "#555"}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+          </button>
+        )}
 
         {/* CTA probar */}
         <div

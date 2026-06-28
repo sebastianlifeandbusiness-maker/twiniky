@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/lib/store/auth";
 import { useCartStore, cartCount } from "@/lib/store/cart";
 import { useBrandStore } from "@/lib/store/brand";
@@ -88,7 +88,7 @@ export function Navbar() {
       >
         {/* Logo */}
         <Link
-          href="/"
+          href="/marketplace"
           style={{
             fontSize: 16,
             fontWeight: 700,
@@ -158,9 +158,16 @@ export function Navbar() {
           {!mounted ? null : brandToken ? (
             /* MARCA */
             <>
-              <span style={{ fontSize: 11, color: "#888", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-                {brand?.name}
-              </span>
+              <Link
+                href="/brands/dashboard"
+                style={{
+                  fontSize: 11, fontWeight: 500, letterSpacing: "0.1em",
+                  textTransform: "uppercase", border: "1px solid #111",
+                  color: "#111", padding: "6px 14px", textDecoration: "none",
+                }}
+              >
+                Panel de marca
+              </Link>
               <button
                 onClick={handleBrandLogout}
                 style={{
@@ -216,53 +223,63 @@ export function Navbar() {
 
       {/* ── Segunda fila: categorías ── */}
       {mounted && (
-        <div style={{ borderTop: "1px solid #f0f0f0" }}>
-          <div
-            style={{
-              maxWidth: 1440,
-              margin: "0 auto",
-              padding: "0 32px",
-              display: "flex",
-              gap: 0,
-              overflowX: "auto",
-            }}
-          >
-            {NAV_CATEGORIES.map(({ label, href }) => {
-              const fullHref = brandToken && brand
-                ? (href === "/marketplace"
-                    ? `/marketplace?brand_id=${brand.id}`
-                    : `${href}&brand_id=${brand.id}`)
-                : href;
-              const isActive =
-                pathname === "/marketplace" &&
-                (href === "/marketplace"
-                  ? typeof window !== "undefined" && !window.location.search.includes("category=")
-                  : typeof window !== "undefined" && window.location.search.includes(`category=${label}`));
-              return (
-                <Link
-                  key={label}
-                  href={fullHref}
-                  style={{
-                    padding: "9px 14px",
-                    fontSize: 10,
-                    fontWeight: isActive ? 700 : 500,
-                    letterSpacing: "0.15em",
-                    textTransform: "uppercase",
-                    color: isActive ? "#111" : "#888",
-                    textDecoration: "none",
-                    borderBottom: isActive ? "2px solid #111" : "2px solid transparent",
-                    whiteSpace: "nowrap",
-                    transition: "color 0.15s, border-color 0.15s",
-                  }}
-                >
-                  {label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+        <Suspense fallback={<div style={{ borderTop: "1px solid #f0f0f0", height: 38 }} />}>
+          <NavCategoryBar brandToken={brandToken} brand={brand} />
+        </Suspense>
       )}
     </header>
+  );
+}
+
+function NavCategoryBar({ brandToken, brand }: { brandToken: string | null; brand: { id: string } | null }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlCategory = searchParams.get("category");
+
+  return (
+    <div style={{ borderTop: "1px solid #f0f0f0" }}>
+      <div
+        style={{
+          maxWidth: 1440,
+          margin: "0 auto",
+          padding: "0 32px",
+          display: "flex",
+          gap: 0,
+          overflowX: "auto",
+        }}
+      >
+        {NAV_CATEGORIES.map(({ label, href }) => {
+          const fullHref = brandToken && brand
+            ? (href === "/marketplace"
+                ? `/marketplace?brand_id=${brand.id}`
+                : `${href}&brand_id=${brand.id}`)
+            : href;
+          const isActive =
+            pathname === "/marketplace" &&
+            (href === "/marketplace" ? !urlCategory : urlCategory === label);
+          return (
+            <Link
+              key={label}
+              href={fullHref}
+              style={{
+                padding: "9px 14px",
+                fontSize: 10,
+                fontWeight: isActive ? 700 : 500,
+                letterSpacing: "0.15em",
+                textTransform: "uppercase",
+                color: isActive ? "#111" : "#888",
+                textDecoration: "none",
+                borderBottom: isActive ? "2px solid #111" : "2px solid transparent",
+                whiteSpace: "nowrap",
+                transition: "color 0.15s, border-color 0.15s",
+              }}
+            >
+              {label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

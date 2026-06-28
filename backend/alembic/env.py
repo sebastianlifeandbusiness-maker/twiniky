@@ -18,6 +18,7 @@ import app.models.avatar  # noqa
 import app.models.tryon_selection  # noqa
 import app.models.stock_alert  # noqa
 import app.models.guest_stock_alert  # noqa
+import app.models.brand_tryon_selection  # noqa
 
 config = context.config
 

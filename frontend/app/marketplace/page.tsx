@@ -2,9 +2,11 @@
 
 import { useMemo, useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useProducts } from "@/lib/hooks/useProducts";
 import { ProductCard } from "@/components/marketplace/ProductCard";
 import { ProductFilters, type BrandOption } from "@/components/marketplace/ProductFilters";
+import { useBrandStore } from "@/lib/store/brand";
 
 const SORT_OPTIONS = [
   { value: "newest",     label: "Más nuevos" },
@@ -28,13 +30,15 @@ function SkeletonCard() {
 
 function MarketplaceInner() {
   const searchParams = useSearchParams();
+  const { brand } = useBrandStore();
   const urlCategory = searchParams.get("category") ?? "Todos";
   const urlSearch   = searchParams.get("q") ?? "";
   const urlBrandId  = searchParams.get("brand_id") ?? null;
+  const effectiveBrandId = urlBrandId ?? brand?.id ?? null;
 
   const [selectedSizes,    setSelectedSizes]    = useState<string[]>([]);
   const [priceRange,       setPriceRange]       = useState<[number, number]>([0, 120000]);
-  const [selectedBrands,   setSelectedBrands]   = useState<string[]>(urlBrandId ? [urlBrandId] : []);
+  const [selectedBrands,   setSelectedBrands]   = useState<string[]>([]);
   const [selectedColors,   setSelectedColors]   = useState<string[]>([]);
   const [selectedOccasions,setSelectedOccasions]= useState<string[]>([]);
   const [sortBy,           setSortBy]           = useState("newest");
@@ -45,7 +49,7 @@ function MarketplaceInner() {
   const { data: raw, isLoading, isError, refetch } = useProducts({
     category: urlCategory !== "Todos" ? urlCategory : undefined,
     q: search || undefined,
-    brand_id: urlBrandId || undefined,
+    brand_id: effectiveBrandId || undefined,
     limit: 100,
   });
 
@@ -62,14 +66,14 @@ function MarketplaceInner() {
   }, [raw]);
 
   const urlBrandName = useMemo(() => {
-    if (!urlBrandId) return null;
-    return brandOptions.find((b) => b.id === urlBrandId)?.name ?? null;
-  }, [urlBrandId, brandOptions]);
+    if (!effectiveBrandId) return null;
+    return brandOptions.find((b) => b.id === effectiveBrandId)?.name ?? null;
+  }, [effectiveBrandId, brandOptions]);
 
   const visibleBrandOptions = useMemo(() => {
-    if (urlBrandId) return brandOptions.filter((b) => b.id === urlBrandId);
+    if (effectiveBrandId) return brandOptions.filter((b) => b.id === effectiveBrandId);
     return brandOptions;
-  }, [urlBrandId, brandOptions]);
+  }, [effectiveBrandId, brandOptions]);
 
   const products = useMemo(() => {
     if (!raw) return [];
@@ -101,7 +105,7 @@ function MarketplaceInner() {
   }
   function clearFilters() {
     setSelectedSizes([]);
-    setSelectedBrands(urlBrandId ? [urlBrandId] : []);
+    setSelectedBrands([]);
     setSelectedColors([]);
     setSelectedOccasions([]);
     setPriceRange([0, 120000]);
@@ -137,14 +141,11 @@ function MarketplaceInner() {
       </div>
 
       {/* ── Banner modo marca ── */}
-      {urlBrandId && (
-        <div style={{ backgroundColor: "#f0ede8", borderBottom: "1px solid #e0dbd3", padding: "10px 40px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      {effectiveBrandId && (
+        <div style={{ backgroundColor: "#f0ede8", borderBottom: "1px solid #e0dbd3", padding: "10px 40px", display: "flex", alignItems: "center" }}>
           <span style={{ fontSize: 12, color: "#555" }}>
             Selecciona una prenda de tu catálogo{urlBrandName ? ` · ${urlBrandName}` : ""}
           </span>
-          <a href="/marketplace" style={{ fontSize: 11, color: "#888", textDecoration: "underline", textUnderlineOffset: 2 }}>
-            Ver todo el catálogo
-          </a>
         </div>
       )}
 
@@ -163,7 +164,7 @@ function MarketplaceInner() {
               priceRange={priceRange}
               onPriceRangeChange={setPriceRange}
               onClear={clearFilters}
-              brandOptions={urlBrandId ? [] : visibleBrandOptions}
+              brandOptions={effectiveBrandId ? [] : visibleBrandOptions}
               selectedBrands={selectedBrands}
               onBrandChange={toggleBrand}
               selectedColors={selectedColors}
@@ -186,10 +187,13 @@ function MarketplaceInner() {
                 <><strong style={{ color: "#333", fontWeight: 500 }}>{products.length}</strong>{" "}{products.length === 1 ? "producto" : "productos"}</>
               )}
             </span>
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
-              style={{ fontSize: 11, color: "#555", border: "none", borderBottom: "1px solid #d0d0cc", padding: "4px 20px 4px 0", backgroundColor: "transparent", outline: "none", cursor: "pointer", letterSpacing: "0.05em", appearance: "none", WebkitAppearance: "none" }}>
-              {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 10, color: "#888", textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 500 }}>Filtra aquí</span>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
+                style={{ fontSize: 11, color: "#555", border: "none", borderBottom: "1px solid #d0d0cc", padding: "4px 20px 4px 0", backgroundColor: "transparent", outline: "none", cursor: "pointer", letterSpacing: "0.05em", appearance: "none", WebkitAppearance: "none" }}>
+                {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
           </div>
 
           {/* Grid */}
@@ -206,11 +210,22 @@ function MarketplaceInner() {
             </div>
           ) : products.length === 0 ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0", textAlign: "center" }}>
-              <p style={{ fontSize: 20, fontWeight: 300, color: "#ccc", letterSpacing: "0.08em", margin: "0 0 10px" }}>Sin resultados</p>
-              <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 24px" }}>Prueba con otros filtros</p>
-              <button onClick={clearFilters} style={{ background: "none", border: "none", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "#888", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}>
-                Limpiar filtros
-              </button>
+              {effectiveBrandId ? (
+                <>
+                  <p style={{ fontSize: 20, fontWeight: 300, color: "#ccc", letterSpacing: "0.08em", margin: "0 0 10px" }}>No tienes productos en esta categoría</p>
+                  <Link href="/brands/dashboard" style={{ display: "inline-block", marginTop: 16, fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", backgroundColor: "#111", color: "#fff", padding: "10px 22px", textDecoration: "none" }}>
+                    Agregar producto
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: 20, fontWeight: 300, color: "#ccc", letterSpacing: "0.08em", margin: "0 0 10px" }}>Sin resultados</p>
+                  <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 24px" }}>Prueba con otros filtros</p>
+                  <button onClick={clearFilters} style={{ background: "none", border: "none", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "#888", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 3 }}>
+                    Limpiar filtros
+                  </button>
+                </>
+              )}
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "48px 20px" }}>

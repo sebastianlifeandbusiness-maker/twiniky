@@ -15,7 +15,7 @@ import {
   type ZoneId,
   type ZoneGarment,
 } from "@/lib/store/tryon";
-import { avatarApi, apiToMeasurements, tryonSelectionsApi } from "@/lib/api";
+import { avatarApi, apiToMeasurements, tryonSelectionsApi, brandTryonSelectionsApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
 import { useBrandStore } from "@/lib/store/brand";
 import type { Measurements } from "@/types";
@@ -147,13 +147,18 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
       .catch(() => {});
   }, [token]);
 
-  // Carga selecciones guardadas del usuario al montar
+  // Carga selecciones guardadas al montar (buyer o marca)
   useEffect(() => {
-    if (!token) return;
-    tryonSelectionsApi.getSelections()
-      .then(({ data }) => loadFromServer(data))
-      .catch(() => {});
-  }, [token]);
+    if (token) {
+      tryonSelectionsApi.getSelections()
+        .then(({ data }) => loadFromServer(data))
+        .catch(() => {});
+    } else if (brandToken) {
+      brandTryonSelectionsApi.getSelections()
+        .then(({ data }) => loadFromServer(data))
+        .catch(() => {});
+    }
+  }, [token, brandToken]);
 
   const { data: product } = useProduct(productId ?? "");
   const processedRef = useRef<string | null>(null);

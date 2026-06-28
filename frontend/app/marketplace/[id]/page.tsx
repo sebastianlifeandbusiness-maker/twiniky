@@ -31,7 +31,7 @@ export default function ProductDetailPage({ params }: Props) {
   const [guestStatus, setGuestStatus] = useState<"idle" | "loading" | "success" | "conflict" | "error">("idle");
   const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
-  const { brand: activeBrand } = useBrandStore();
+  const { brand: activeBrand, token: brandToken } = useBrandStore();
   const { token } = useAuthStore();
   const { ids: favIds, add: favAdd, remove: favRemove } = useFavoritesStore();
   const { increment: alertIncrement, decrement: alertDecrement } = useAlertsStore();
@@ -102,8 +102,8 @@ export default function ProductDetailPage({ params }: Props) {
 
   function handleAddToCart() {
     if (!product) return;
-    if (activeBrand && product.brand_id && product.brand_id === activeBrand.id) {
-      setBlockMsg("No puedes comprar productos de tu propia marca.");
+    if (activeBrand) {
+      setBlockMsg("No disponible en modo marca");
       setTimeout(() => setBlockMsg(null), 2500);
       return;
     }
@@ -321,15 +321,17 @@ export default function ProductDetailPage({ params }: Props) {
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 300, color: "#111", lineHeight: 1.3 }}>
               {product.name}
             </h1>
-            <button
-              onClick={handleFavorite}
-              title={favIds.includes(product.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
-              style={{ flexShrink: 0, width: 36, height: 36, borderRadius: "50%", border: "1px solid #e8e8e8", backgroundColor: "#fff", cursor: favLoading ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill={favIds.includes(product.id) ? "#e11d48" : "none"} stroke={favIds.includes(product.id) ? "#e11d48" : "#888"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-            </button>
+            {!brandToken && (
+              <button
+                onClick={handleFavorite}
+                title={favIds.includes(product.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
+                style={{ flexShrink: 0, width: 36, height: 36, borderRadius: "50%", border: "1px solid #e8e8e8", backgroundColor: "#fff", cursor: favLoading ? "wait" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill={favIds.includes(product.id) ? "#e11d48" : "none"} stroke={favIds.includes(product.id) ? "#e11d48" : "#888"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              </button>
+            )}
           </div>
 
           {/* Price */}
@@ -563,7 +565,7 @@ export default function ProductDetailPage({ params }: Props) {
                 <AddToCartBtn
                   needsSize={false}
                   added={added}
-                  blocked={!!blockMsg}
+                  blocked={!!activeBrand || !!blockMsg}
                   onClick={handleAddToCart}
                 />
                 {blockMsg && (
@@ -653,7 +655,7 @@ function AddToCartBtn({
   let label = "Agregar al carrito";
   if (needsSize) label = "Selecciona una talla";
   if (added) label = "✓ Añadido al carrito";
-  if (blocked) label = "No disponible para tu marca";
+  if (blocked) label = "No disponible en modo marca";
 
   const bg = added ? "#16a34a" : blocked ? "#fee2e2" : hov && !disabled ? "#111" : "transparent";
   const color = added ? "#fff" : blocked ? "#dc2626" : hov && !disabled ? "#fff" : "#111";

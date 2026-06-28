@@ -226,6 +226,17 @@ export const tryonSelectionsApi = {
     api.delete(`/tryon/selections/${zone}`),
 };
 
+export const brandTryonSelectionsApi = {
+  getSelections: () => brandsAxios.get<TryOnSelectionOut[]>("/brands/me/tryon-selections"),
+  updateSelection: (zone: string, productId: string, selectedColor?: string | null) =>
+    brandsAxios.put<TryOnSelectionOut>(`/brands/me/tryon-selections/${zone}`, {
+      product_id: productId,
+      selected_color: selectedColor ?? null,
+    }),
+  deleteSelection: (zone: string) =>
+    brandsAxios.delete(`/brands/me/tryon-selections/${zone}`),
+};
+
 export const favoritesApi = {
   list: () => api.get<import("@/types").Product[]>("/favorites/"),
   add: (productId: string) => api.post<{ message: string }>(`/favorites/${productId}`),

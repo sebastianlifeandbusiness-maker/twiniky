@@ -206,26 +206,9 @@ export default function BrandDashboardPage() {
         }}
       >
         <span style={{ fontSize: 16, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#111" }}>
-          Twiniky
+          {brand.name}
         </span>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          {brand.logo_url && (
-            <img src={brand.logo_url} alt={brand.name} style={{ width: 28, height: 28, objectFit: "contain", border: "1px solid #ebebeb" }} />
-          )}
-          <span style={{ fontSize: 11, color: "#555", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: 600 }}>
-            {brand.name}
-          </span>
-          <button
-            onClick={() => { clearBrand(); router.push("/"); }}
-            style={{
-              fontSize: 10, fontWeight: 500, letterSpacing: "0.1em", textTransform: "uppercase",
-              border: "1px solid #ddd", backgroundColor: "transparent", color: "#333",
-              padding: "6px 14px", cursor: "pointer",
-            }}
-          >
-            Cerrar sesion
-          </button>
-        </div>
+        <div />
       </header>
 
       {/* ── Body: sidebar + content ── */}
