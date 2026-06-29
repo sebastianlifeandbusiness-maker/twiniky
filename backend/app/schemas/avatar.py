@@ -21,6 +21,7 @@ class AvatarMeasurementsIn(BaseModel):
     age_group: Optional[str] = None
     body_type: Optional[str] = None
     weight: Optional[float] = Field(default=None, ge=20, le=300)
+    skin_tone: Optional[str] = None
 
 
 class AvatarMeasurementsOut(AvatarMeasurementsIn):

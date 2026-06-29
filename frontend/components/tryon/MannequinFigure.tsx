@@ -4,6 +4,7 @@ import type { Measurements } from "@/types";
 
 interface Props {
   measurements: Measurements;
+  skinTone?: string | null;
 }
 
 const BASE = {
@@ -41,7 +42,7 @@ const FOOT_H   = 0.05;
 const ANKLE_GAP = 0.025;
 const CALF_BOTTOM_OFFSET = CALF_CENTER_OFFSET + CALF_H / 2; // 0.595
 
-const SKIN = "#d4c5b8";
+const SKIN_DEFAULT = "#d4c5b8";
 
 export type ProfileMults = {
   shoulderMult: number;
@@ -109,7 +110,8 @@ export function getBaseProportions(
   return { shoulderMult, hipMult, waistMult, headScale, volumeMult };
 }
 
-export function MannequinFigure({ measurements }: Props) {
+export function MannequinFigure({ measurements, skinTone }: Props) {
+  const SKIN = skinTone ?? SKIN_DEFAULT;
   const hScale   = measurements.height        / BASE.height;
   const bScale   = measurements.bust          / BASE.bust;
   const wScale   = measurements.waist         / BASE.waist;

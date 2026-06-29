@@ -260,6 +260,7 @@ export interface AvatarMeasurementsPayload {
   age_group?: string | null;
   body_type?: string | null;
   weight?: number | null;
+  skin_tone?: string | null;
 }
 
 export const avatarApi = {
@@ -286,6 +287,7 @@ export function measurementsToApi(m: import("@/types").Measurements): AvatarMeas
     age_group: m.ageGroup ?? null,
     body_type: m.bodyType ?? null,
     weight: m.weight ?? null,
+    skin_tone: m.skinTone ?? null,
   };
 }
 
@@ -307,5 +309,6 @@ export function apiToMeasurements(p: AvatarMeasurementsPayload): import("@/types
     ageGroup: (p.age_group ?? null) as import("@/types").Measurements["ageGroup"],
     bodyType: (p.body_type ?? null) as import("@/types").Measurements["bodyType"],
     weight: p.weight ?? null,
+    skinTone: p.skin_tone ?? null,
   };
 }

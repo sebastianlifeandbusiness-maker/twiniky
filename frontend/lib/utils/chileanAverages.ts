@@ -46,16 +46,17 @@ const AVERAGES: Record<string, Record<string, Record<string, MeasurementProfile>
       overweight: { height:136, weight:44, bust:80, waist:70, hips:84, shoulderWidth:33, torsoLength:46, legLength:64, armLength:40, armGirth:21, thighGirth:44, calfGirth:29 },
     },
   },
-  // Mayores (sin "atlético" en la tabla)
   senior: {
     male: {
       slim:       { height:170, weight:66, bust:94,  waist:82,  hips:94,  shoulderWidth:43, torsoLength:59, legLength:80, armLength:57, armGirth:27, thighGirth:48, calfGirth:33 },
       normal:     { height:170, weight:82, bust:104, waist:96,  hips:104, shoulderWidth:44, torsoLength:61, legLength:80, armLength:58, armGirth:30, thighGirth:54, calfGirth:35 },
+      athletic:   { height:171, weight:72, bust:100, waist:82,  hips:96,  shoulderWidth:44, torsoLength:60, legLength:81, armLength:59, armGirth:30, thighGirth:50, calfGirth:34 },
       overweight: { height:169, weight:98, bust:116, waist:110, hips:112, shoulderWidth:45, torsoLength:62, legLength:78, armLength:58, armGirth:32, thighGirth:60, calfGirth:38 },
     },
     female: {
       slim:       { height:156, weight:56, bust:90,  waist:78,  hips:98,  shoulderWidth:37, torsoLength:54, legLength:73, armLength:51, armGirth:24, thighGirth:50, calfGirth:32 },
       normal:     { height:156, weight:72, bust:104, waist:90,  hips:110, shoulderWidth:38, torsoLength:56, legLength:73, armLength:52, armGirth:27, thighGirth:57, calfGirth:35 },
+      athletic:   { height:157, weight:60, bust:94,  waist:72,  hips:100, shoulderWidth:38, torsoLength:55, legLength:74, armLength:52, armGirth:25, thighGirth:50, calfGirth:33 },
       overweight: { height:155, weight:88, bust:116, waist:104, hips:122, shoulderWidth:39, torsoLength:58, legLength:71, armLength:52, armGirth:29, thighGirth:64, calfGirth:38 },
     },
   },
@@ -82,7 +83,7 @@ export function getAverageMeasurements(
   if (!sexKey) return null;
 
   const profile = ageData[sexKey]?.[bodyType];
-  if (!profile) return null; // e.g., senior + athletic no existe
+  if (!profile) return null;
 
   return {
     height:       profile.height,

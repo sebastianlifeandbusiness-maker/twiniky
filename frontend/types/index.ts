@@ -71,4 +71,5 @@ export interface Measurements {
   ageGroup?: "child" | "teen" | "adult" | "senior" | null;
   bodyType?: "slim" | "normal" | "athletic" | "overweight" | null;
   weight?:   number | null; // kg
+  skinTone?: string | null;
 }

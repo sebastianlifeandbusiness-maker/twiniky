@@ -86,7 +86,7 @@ function SceneContents({
         color="#ffffff"
         castShadow
       />
-      <MannequinFigure measurements={measurements} />
+      <MannequinFigure measurements={measurements} skinTone={measurements.skinTone} />
       {garmentList.map((g, i) => (
         <GarmentOverlay
           key={i}

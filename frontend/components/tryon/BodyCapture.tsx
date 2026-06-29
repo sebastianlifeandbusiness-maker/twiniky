@@ -374,6 +374,40 @@ export function BodyCapture({ defaultMeasurements, onComplete }: Props) {
                 })}
               </div>
 
+              {/* Tono de piel */}
+              <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#666" }}>
+                Tono de piel
+              </p>
+              <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap" }}>
+                {([
+                  { value: "#F5DEB3", label: "Muy claro" },
+                  { value: "#E8C99A", label: "Claro" },
+                  { value: "#C8956C", label: "Medio" },
+                  { value: "#A0674A", label: "Moreno" },
+                  { value: "#7B4A2D", label: "Oscuro" },
+                  { value: "#4A2512", label: "Muy oscuro" },
+                ] as const).map(({ value, label }) => {
+                  const active = measurements.skinTone === value;
+                  return (
+                    <button
+                      key={value}
+                      title={label}
+                      onClick={() => setMeasurements((prev) => ({ ...prev, skinTone: prev.skinTone === value ? null : value }))}
+                      style={{
+                        width: 30, height: 30, borderRadius: "50%",
+                        backgroundColor: value,
+                        border: active ? "2.5px solid #111" : "2px solid transparent",
+                        outline: active ? "2px solid #fff" : "none",
+                        outlineOffset: -4,
+                        cursor: "pointer", padding: 0,
+                        boxShadow: "0 0 0 1px #ccc",
+                        transition: "border 0.12s, outline 0.12s",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+
               {/* Peso */}
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>

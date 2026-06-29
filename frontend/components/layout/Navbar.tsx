@@ -8,7 +8,7 @@ import { useCartStore, cartCount } from "@/lib/store/cart";
 import { useBrandStore } from "@/lib/store/brand";
 import { useFavoritesStore } from "@/lib/store/favorites";
 import { useAlertsStore } from "@/lib/store/alerts";
-import { favoritesApi, stockAlertsApi } from "@/lib/api";
+import { avatarApi, favoritesApi, stockAlertsApi } from "@/lib/api";
 
 const NAV_CATEGORIES = [
   { label: "Todos",       href: "/marketplace" },
@@ -45,6 +45,15 @@ export function Navbar() {
   }, [token, setAllFavorites, setAlertCount]);
 
   const count = mounted ? cartCount(items) : 0;
+
+  async function handleTryOnClick() {
+    try {
+      await avatarApi.get();
+      router.push("/tryon");
+    } catch {
+      router.push("/avatar/setup");
+    }
+  }
 
   function handleBuyerLogout() {
     logout();
@@ -185,7 +194,7 @@ export function Navbar() {
             <>
               <NavLink href="/marketplace">Marketplace</NavLink>
               <IconButton href="/favorites" label="Favoritos"><HeartIcon /></IconButton>
-              <IconButton href="/tryon" label="Probador 3D"><MannequinIcon /></IconButton>
+              <IconButton onClick={handleTryOnClick} label="Probador 3D"><MannequinIcon /></IconButton>
               <BellIcon count={alertCount} />
               <CartIcon count={count} />
               <button
@@ -283,15 +292,29 @@ function NavCategoryBar({ brandToken, brand }: { brandToken: string | null; bran
   );
 }
 
-function IconButton({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
+function IconButton({ href, onClick, label, children }: { href?: string; onClick?: () => void; label: string; children: React.ReactNode }) {
   const [hov, setHov] = useState(false);
+  const sharedStyle = { display: "flex", alignItems: "center", color: hov ? "#111" : "#666", transition: "color 0.15s" };
+  if (onClick) {
+    return (
+      <button
+        title={label}
+        onClick={onClick}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+        style={{ ...sharedStyle, background: "none", border: "none", padding: 0, cursor: "pointer" }}
+      >
+        {children}
+      </button>
+    );
+  }
   return (
     <Link
-      href={href}
+      href={href!}
       title={label}
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
-      style={{ display: "flex", alignItems: "center", color: hov ? "#111" : "#666", textDecoration: "none", transition: "color 0.15s" }}
+      style={{ ...sharedStyle, textDecoration: "none" }}
     >
       {children}
     </Link>
