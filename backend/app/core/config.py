@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str = "changeme-secret-key"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 14  # 14 days
 
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000"]
 

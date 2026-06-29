@@ -68,8 +68,10 @@ def hash_password(password: str) -> str:
 def verify_password(password: str, hashed: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
 
+BRAND_REFRESH_THRESHOLD_S = 3.5 * 24 * 3600  # renovar si quedan < 3.5 días
+
 def create_brand_token(brand_id: str, brand_name: str) -> str:
-    expire = datetime.utcnow() + timedelta(days=30)
+    expire = datetime.utcnow() + timedelta(days=7)
     return jwt.encode(
         {"sub": brand_id, "name": brand_name, "type": "brand", "exp": expire},
         SECRET_KEY, algorithm=ALGORITHM
@@ -125,6 +127,36 @@ async def login_brand(payload: BrandLogin, db: AsyncSession = Depends(get_db)):
         token_type="bearer",
         brand_id=str(brand.id),
         brand_name=brand.name
+    )
+
+@router.post("/refresh", response_model=BrandToken)
+async def refresh_brand_token(
+    authorization: str | None = Header(None),
+    current_brand: Brand = Depends(get_current_brand),
+):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token requerido")
+    raw_token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
+        exp = payload.get("exp")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    if exp is None:
+        raise HTTPException(status_code=401, detail="Token sin expiración")
+
+    remaining = exp - datetime.now(timezone.utc).timestamp()
+    new_token = (
+        create_brand_token(str(current_brand.id), current_brand.name)
+        if remaining < BRAND_REFRESH_THRESHOLD_S
+        else raw_token
+    )
+    return BrandToken(
+        access_token=new_token,
+        token_type="bearer",
+        brand_id=str(current_brand.id),
+        brand_name=current_brand.name,
     )
 
 @router.get("/", response_model=list[BrandOut])

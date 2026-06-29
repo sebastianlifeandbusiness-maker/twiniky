@@ -312,3 +312,61 @@ export function apiToMeasurements(p: AvatarMeasurementsPayload): import("@/types
     skinTone: p.skin_tone ?? null,
   };
 }
+
+// ── Token refresh interceptors ─────────────────────────────────────────────────
+
+function jwtExp(token: string): number | null {
+  try {
+    return (JSON.parse(atob(token.split(".")[1])) as { exp?: number }).exp ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const BUYER_THRESHOLD_S  = 7   * 24 * 3600; // renovar si < 7 días
+const BRAND_THRESHOLD_S  = 3.5 * 24 * 3600; // renovar si < 3.5 días
+
+let buyerRefreshing = false;
+let brandRefreshing = false;
+
+api.interceptors.response.use((response) => {
+  if (buyerRefreshing || typeof window === "undefined") return response;
+  const token = localStorage.getItem("token");
+  if (!token) return response;
+  const exp = jwtExp(token);
+  if (exp === null) return response;
+  if (exp - Date.now() / 1000 < BUYER_THRESHOLD_S) {
+    buyerRefreshing = true;
+    api.post<{ access_token: string }>("/auth/refresh")
+      .then(({ data }) => {
+        localStorage.setItem("token", data.access_token);
+        import("@/lib/store/auth").then(({ useAuthStore }) => {
+          useAuthStore.getState().setToken(data.access_token);
+        }).catch(() => {});
+      })
+      .catch(() => {})
+      .finally(() => { buyerRefreshing = false; });
+  }
+  return response;
+}, (error) => Promise.reject(error));
+
+brandsAxios.interceptors.response.use((response) => {
+  if (brandRefreshing || typeof window === "undefined") return response;
+  const token = localStorage.getItem("brand_token");
+  if (!token) return response;
+  const exp = jwtExp(token);
+  if (exp === null) return response;
+  if (exp - Date.now() / 1000 < BRAND_THRESHOLD_S) {
+    brandRefreshing = true;
+    brandsAxios.post<{ access_token: string }>("/brands/refresh")
+      .then(({ data }) => {
+        localStorage.setItem("brand_token", data.access_token);
+        import("@/lib/store/brand").then(({ useBrandStore }) => {
+          useBrandStore.getState().setBrandToken(data.access_token);
+        }).catch(() => {});
+      })
+      .catch(() => {})
+      .finally(() => { brandRefreshing = false; });
+  }
+  return response;
+}, (error) => Promise.reject(error));

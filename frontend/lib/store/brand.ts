@@ -6,6 +6,7 @@ interface BrandSession {
   brand: Brand | null;
   token: string | null;
   setBrandSession: (brand: Brand, token: string) => void;
+  setBrandToken: (token: string) => void;
   clearBrand: () => void;
   setBrand: (brand: Brand) => void;
 }
@@ -20,6 +21,12 @@ export const useBrandStore = create<BrandSession>()(
           localStorage.setItem("brand_token", token);
         }
         set({ brand, token });
+      },
+      setBrandToken: (token) => {
+        if (typeof window !== "undefined") {
+          localStorage.setItem("brand_token", token);
+        }
+        set({ token });
       },
       clearBrand: () => {
         if (typeof window !== "undefined") {
