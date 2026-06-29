@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, func
+from sqlalchemy import DateTime, Float, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,6 +26,10 @@ class AvatarMeasurements(Base):
     thigh_girth: Mapped[float] = mapped_column(Float, nullable=False)
     calf_girth: Mapped[float] = mapped_column(Float, nullable=False)
     shoe_size: Mapped[float] = mapped_column(Float, nullable=False)
+    sex: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    age_group: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    body_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    weight: Mapped[float | None] = mapped_column(Float, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )

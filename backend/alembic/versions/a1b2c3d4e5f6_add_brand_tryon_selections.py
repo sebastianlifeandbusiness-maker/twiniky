@@ -1,7 +1,7 @@
 """add_brand_tryon_selections
 
-Revision ID: a1b2c3d4e5f6
-Revises: f6a7b8c9d0e1
+Revision ID: f8a9b0c1d2e3
+Revises: d5e6f7a8b9c0
 Create Date: 2026-06-26 12:00:00.000000
 
 """
@@ -11,8 +11,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "a1b2c3d4e5f6"
-down_revision: Union[str, None] = "f6a7b8c9d0e1"
+revision: str = "f8a9b0c1d2e3"
+down_revision: Union[str, None] = "d5e6f7a8b9c0"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

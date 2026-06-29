@@ -1,6 +1,7 @@
 "use client";
 
 import type { Measurements } from "@/types";
+import { getBaseProportions } from "./MannequinFigure";
 
 // ── Color resolver ─────────────────────────────────────────────────────────────
 const ES_COLORS: Record<string, string> = {
@@ -45,9 +46,6 @@ const FOOT_H        = 0.05;
 const ANKLE_GAP     = 0.025;
 const SKIRT_H       = 0.22;
 
-// Expansión X/Z: la prenda es un 7% más ancha que el cuerpo para evitar z-fighting
-const OFF = 1.07;
-
 interface Props {
   measurements: Measurements;
   garmentColor: string | null;
@@ -55,6 +53,12 @@ interface Props {
 }
 
 export function GarmentOverlay({ measurements, garmentColor, category }: Props) {
+  // OFF dinámico: prenda siempre 8% más ancha que el cuerpo real (medidas × perfil)
+  const profs = getBaseProportions(
+    measurements.sex, measurements.ageGroup, measurements.bodyType,
+    measurements.weight, measurements.height,
+  );
+  const OFF = profs.volumeMult * 1.08;
   if (!category) return null;
   // Accesorios sin color se omiten (sin zona corporal clara para mostrar)
   if (category === "Accesorios" && !garmentColor) return null;

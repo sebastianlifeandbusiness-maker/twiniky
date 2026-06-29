@@ -256,6 +256,10 @@ export interface AvatarMeasurementsPayload {
   thigh_girth: number;
   calf_girth: number;
   shoe_size: number;
+  sex?: string | null;
+  age_group?: string | null;
+  body_type?: string | null;
+  weight?: number | null;
 }
 
 export const avatarApi = {
@@ -278,6 +282,10 @@ export function measurementsToApi(m: import("@/types").Measurements): AvatarMeas
     thigh_girth: m.thighGirth,
     calf_girth: m.calfGirth,
     shoe_size: m.shoeSize,
+    sex: m.sex ?? null,
+    age_group: m.ageGroup ?? null,
+    body_type: m.bodyType ?? null,
+    weight: m.weight ?? null,
   };
 }
 
@@ -295,5 +303,9 @@ export function apiToMeasurements(p: AvatarMeasurementsPayload): import("@/types
     thighGirth: p.thigh_girth,
     calfGirth: p.calf_girth,
     shoeSize: p.shoe_size,
+    sex: (p.sex ?? null) as import("@/types").Measurements["sex"],
+    ageGroup: (p.age_group ?? null) as import("@/types").Measurements["ageGroup"],
+    bodyType: (p.body_type ?? null) as import("@/types").Measurements["bodyType"],
+    weight: p.weight ?? null,
   };
 }

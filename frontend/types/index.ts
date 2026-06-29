@@ -67,4 +67,8 @@ export interface Measurements {
   armGirth:      number; // cm — contorno bíceps
   thighGirth:    number; // cm — contorno muslo
   calfGirth:     number; // cm — contorno pantorrilla
+  sex?:      "male" | "female" | null;
+  ageGroup?: "child" | "teen" | "adult" | "senior" | null;
+  bodyType?: "slim" | "normal" | "athletic" | "overweight" | null;
+  weight?:   number | null; // kg
 }

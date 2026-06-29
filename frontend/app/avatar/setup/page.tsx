@@ -6,12 +6,14 @@ import { avatarApi, apiToMeasurements, measurementsToApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
 import { useBrandStore } from "@/lib/store/brand";
 import type { Measurements } from "@/types";
+import { getAverageMeasurements } from "@/lib/utils/chileanAverages";
 
 const DEFAULT_MEASUREMENTS: Measurements = {
   height: 165, bust: 88, waist: 68, hips: 94,
   armLength: 58, shoeSize: 39, shoulderWidth: 40,
   torsoLength: 61, legLength: 85, armGirth: 28,
   thighGirth: 55, calfGirth: 36,
+  sex: null, ageGroup: null, bodyType: null, weight: null,
 };
 
 const SLIDER_GROUPS = [
@@ -34,7 +36,7 @@ const SLIDER_GROUPS = [
   {
     label: "Brazos",
     sliders: [
-      { field: "armLength" as const, label: "Largo de brazo",      unit: "cm", min: 50, max: 80 },
+      { field: "armLength" as const, label: "Largo de brazo",      unit: "cm", min: 30, max: 80 },
       { field: "armGirth" as const,  label: "Contorno de bíceps",  unit: "cm", min: 18, max: 45 },
     ],
   },
@@ -62,6 +64,19 @@ function AvatarSetupForm() {
   const [measurements, setMeasurements] = useState<Measurements>(DEFAULT_MEASUREMENTS);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoFillMsg, setAutoFillMsg] = useState(false);
+
+  // Los 3 parámetros de perfil son fuente de verdad: resetean todos los sliders
+  useEffect(() => {
+    const { sex, ageGroup, bodyType } = measurements;
+    const needsSex = ageGroup !== "child";
+    if (!ageGroup || !bodyType || (needsSex && !sex)) { setAutoFillMsg(false); return; }
+    const avg = getAverageMeasurements(sex, ageGroup, bodyType);
+    if (!avg) return;
+    setMeasurements((prev) => ({ ...prev, ...avg }));
+    setAutoFillMsg(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [measurements.sex, measurements.ageGroup, measurements.bodyType]);
 
   useEffect(() => {
     if (!token && !brandToken) {
@@ -135,11 +150,171 @@ function AvatarSetupForm() {
       >
         {hasExisting ? "Actualiza tu avatar" : "Configura tu avatar"}
       </h1>
-      <p style={{ margin: "0 0 40px", fontSize: 13, color: "#888", lineHeight: 1.7 }}>
+      <p style={{ margin: "0 0 20px", fontSize: 13, color: "#888", lineHeight: 1.7 }}>
         {hasExisting
           ? "Ajusta tus medidas para que el probador 3D refleje tu cuerpo con precisión."
           : "Ingresa tus medidas para crear tu maniquí personalizado en el probador 3D."}
       </p>
+
+      {autoFillMsg && (
+        <div
+          style={{
+            backgroundColor: "#f0f7ee",
+            border: "1px solid #b8d8b0",
+            borderRadius: 6,
+            padding: "10px 14px",
+            marginBottom: 24,
+            fontSize: 11,
+            color: "#2d6a20",
+            lineHeight: 1.6,
+          }}
+        >
+          Medidas ajustadas según tu perfil. Puedes modificarlas.
+        </div>
+      )}
+
+      {/* ── Perfil corporal ── */}
+      <div style={{ marginBottom: 32 }}>
+        <p
+          style={{
+            margin: "0 0 16px",
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: "#bbb",
+            borderBottom: "1px solid #f0f0ee",
+            paddingBottom: 6,
+          }}
+        >
+          Perfil corporal
+        </p>
+
+        {/* Sexo */}
+        <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#666" }}>
+          Sexo
+        </p>
+        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          {([{ value: "male", label: "Masculino" }, { value: "female", label: "Femenino" }] as const).map(({ value, label }) => {
+            const active = measurements.sex === value;
+            return (
+              <button
+                key={value}
+                onClick={() => setMeasurements((prev) => ({ ...prev, sex: prev.sex === value ? null : value }))}
+                style={{
+                  flex: 1, padding: "10px 0", fontSize: 10, fontWeight: active ? 700 : 400,
+                  letterSpacing: "0.1em", textTransform: "uppercase",
+                  border: `1px solid ${active ? "#111" : "#e0e0dc"}`,
+                  backgroundColor: active ? "#111" : "#fff",
+                  color: active ? "#fff" : "#555",
+                  cursor: "pointer", borderRadius: 4, transition: "all 0.15s",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Grupo de edad */}
+        <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#666" }}>
+          Edad
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 20 }}>
+          {([
+            { value: "child",  label: "Niño (8–12)" },
+            { value: "teen",   label: "Adolescente (13–17)" },
+            { value: "adult",  label: "Adulto (18–59)" },
+            { value: "senior", label: "Mayor (60+)" },
+          ] as const).map(({ value, label }) => {
+            const active = measurements.ageGroup === value;
+            return (
+              <button
+                key={value}
+                onClick={() => setMeasurements((prev) => ({ ...prev, ageGroup: prev.ageGroup === value ? null : value }))}
+                style={{
+                  padding: "9px 0", fontSize: 9, fontWeight: active ? 700 : 400,
+                  letterSpacing: "0.1em", textTransform: "uppercase",
+                  border: `1px solid ${active ? "#111" : "#e0e0dc"}`,
+                  backgroundColor: active ? "#111" : "#fff",
+                  color: active ? "#fff" : "#555",
+                  cursor: "pointer", borderRadius: 4, transition: "all 0.15s",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Contextura */}
+        <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#666" }}>
+          Contextura
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 20 }}>
+          {([
+            { value: "slim",       label: "Delgado" },
+            { value: "normal",     label: "Normal" },
+            { value: "athletic",   label: "Atlético" },
+            { value: "overweight", label: "Robusto" },
+          ] as const).map(({ value, label }) => {
+            const active = measurements.bodyType === value;
+            return (
+              <button
+                key={value}
+                onClick={() => setMeasurements((prev) => ({ ...prev, bodyType: prev.bodyType === value ? null : value }))}
+                style={{
+                  padding: "9px 0", fontSize: 9, fontWeight: active ? 700 : 400,
+                  letterSpacing: "0.1em", textTransform: "uppercase",
+                  border: `1px solid ${active ? "#111" : "#e0e0dc"}`,
+                  backgroundColor: active ? "#111" : "#fff",
+                  color: active ? "#fff" : "#555",
+                  cursor: "pointer", borderRadius: 4, transition: "all 0.15s",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Peso */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+            <label style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "#666" }}>
+              Peso (opcional)
+            </label>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>
+                {measurements.weight != null ? measurements.weight : "—"}
+                {measurements.weight != null && (
+                  <span style={{ fontSize: 9, fontWeight: 400, color: "#aaa" }}> kg</span>
+                )}
+              </span>
+              {measurements.weight != null && (
+                <button
+                  onClick={() => setMeasurements((prev) => ({ ...prev, weight: null }))}
+                  style={{ fontSize: 11, color: "#bbb", background: "none", border: "none", cursor: "pointer", padding: "0 2px", lineHeight: 1 }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+          <input
+            type="range"
+            min={20} max={150}
+            value={measurements.weight ?? 65}
+            onChange={(e) => {
+              setMeasurements((prev) => ({ ...prev, weight: Number(e.target.value) }));
+            }}
+            style={{ width: "100%", accentColor: "#111", cursor: "pointer", opacity: measurements.weight != null ? 1 : 0.35 }}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3, fontSize: 9, color: "#ddd" }}>
+            <span>20</span><span>150</span>
+          </div>
+        </div>
+      </div>
 
       {/* Sliders */}
       {SLIDER_GROUPS.map((group) => (
@@ -190,9 +365,9 @@ function AvatarSetupForm() {
                   min={min}
                   max={max}
                   value={measurements[field]}
-                  onChange={(e) =>
-                    setMeasurements((prev) => ({ ...prev, [field]: Number(e.target.value) }))
-                  }
+                  onChange={(e) => {
+                    setMeasurements((prev) => ({ ...prev, [field]: Number(e.target.value) }));
+                  }}
                   style={{ width: "100%", accentColor: "#111", cursor: "pointer" }}
                 />
                 <div
@@ -259,7 +434,9 @@ function AvatarSetupForm() {
             return (
               <button
                 key={size}
-                onClick={() => setMeasurements((prev) => ({ ...prev, shoeSize: size }))}
+                onClick={() => {
+                  setMeasurements((prev) => ({ ...prev, shoeSize: size }));
+                }}
                 style={{
                   width: 42,
                   height: 36,
