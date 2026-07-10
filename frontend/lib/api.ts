@@ -1,8 +1,15 @@
 import axios from "axios";
 import type { Brand, Product, User } from "@/types";
 
+function getApiBaseUrl(): string {
+  if (typeof window === "undefined") {
+    return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";
+  }
+  return `http://${window.location.hostname}:8000/api/v1`;
+}
+
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
+  baseURL: getApiBaseUrl(),
   headers: { "Content-Type": "application/json" },
 });
 
@@ -85,7 +92,7 @@ export interface BrandProductPayload {
 
 // Axios instance separada para marcas con su propio token
 export const brandsAxios = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
+  baseURL: getApiBaseUrl(),
   headers: { "Content-Type": "application/json" },
 });
 
