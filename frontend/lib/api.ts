@@ -8,6 +8,10 @@ function getApiBaseUrl(): string {
   return `http://${window.location.hostname}:8000/api/v1`;
 }
 
+export function getBackendOrigin(): string {
+  return getApiBaseUrl().replace(/\/api\/v1$/, "");
+}
+
 export const api = axios.create({
   baseURL: getApiBaseUrl(),
   headers: { "Content-Type": "application/json" },
@@ -268,12 +272,27 @@ export interface AvatarMeasurementsPayload {
   body_type?: string | null;
   weight?: number | null;
   skin_tone?: string | null;
+  avatar_glb_url?: string | null;
+  updated_at?: string;
 }
 
 export const avatarApi = {
   get: () => api.get<AvatarMeasurementsPayload>("/avatar/measurements"),
   save: (payload: AvatarMeasurementsPayload) =>
     api.post<AvatarMeasurementsPayload>("/avatar/measurements", payload),
+  generate: (photo: File, measurements: AvatarMeasurementsPayload) => {
+    const form = new FormData();
+    form.append("photo", photo, photo.name || "selfie.jpg");
+    Object.entries(measurements).forEach(([key, value]) => {
+      if (value !== null && value !== undefined && key !== "avatar_glb_url" && key !== "updated_at") {
+        form.append(key, String(value));
+      }
+    });
+    return api.post<AvatarMeasurementsPayload>("/avatar/generate", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+      timeout: 150_000,
+    });
+  },
 };
 
 export function measurementsToApi(m: import("@/types").Measurements): AvatarMeasurementsPayload {

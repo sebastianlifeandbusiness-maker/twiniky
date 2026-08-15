@@ -26,5 +26,6 @@ class AvatarMeasurementsIn(BaseModel):
 
 class AvatarMeasurementsOut(AvatarMeasurementsIn):
     updated_at: datetime
+    avatar_glb_url: Optional[str] = None
 
     model_config = {"from_attributes": True}

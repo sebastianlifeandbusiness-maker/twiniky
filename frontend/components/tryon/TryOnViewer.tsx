@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { MannequinFigure } from "./MannequinFigure";
+import { AvatarModel } from "./AvatarModel";
 import { GarmentOverlay } from "./GarmentOverlay";
 import { useProduct } from "@/lib/hooks/useProducts";
 import { formatCLP } from "@/lib/utils/format";
@@ -15,7 +16,7 @@ import {
   type ZoneId,
   type ZoneGarment,
 } from "@/lib/store/tryon";
-import { avatarApi, apiToMeasurements, tryonSelectionsApi, brandTryonSelectionsApi } from "@/lib/api";
+import { avatarApi, apiToMeasurements, getBackendOrigin, tryonSelectionsApi, brandTryonSelectionsApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
 import { useBrandStore } from "@/lib/store/brand";
 import type { Measurements } from "@/types";
@@ -73,9 +74,11 @@ interface Props {
 function SceneContents({
   measurements,
   garmentList,
+  glbUrl,
 }: {
   measurements: Measurements;
   garmentList: Array<{ category: string; effectiveColor: string | null }>;
+  glbUrl: string | null;
 }) {
   return (
     <>
@@ -86,7 +89,11 @@ function SceneContents({
         color="#ffffff"
         castShadow
       />
-      <MannequinFigure measurements={measurements} skinTone={measurements.skinTone} />
+      {glbUrl ? (
+        <AvatarModel url={glbUrl} />
+      ) : (
+        <MannequinFigure measurements={measurements} skinTone={measurements.skinTone} />
+      )}
       {garmentList.map((g, i) => (
         <GarmentOverlay
           key={i}
@@ -112,6 +119,7 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
   const scene = SCENES[sceneIdx];
   const [hovScene, setHovScene] = useState<number | null>(null);
   const [measurements, setMeasurements] = useState<Measurements>(initialMeasurements);
+  const [glbUrl, setGlbUrl] = useState<string | null>(null);
 
   const { token } = useAuthStore();
   const { brand: brandSession, token: brandToken } = useBrandStore();
@@ -121,7 +129,15 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
   useEffect(() => {
     if (!token) return;
     avatarApi.get()
-      .then(({ data }) => setMeasurements(apiToMeasurements(data)))
+      .then(({ data }) => {
+        setMeasurements(apiToMeasurements(data));
+        if (data.avatar_glb_url) {
+          const version = data.updated_at ? encodeURIComponent(data.updated_at) : Date.now();
+          setGlbUrl(`${getBackendOrigin()}${data.avatar_glb_url}?v=${version}`);
+        } else {
+          setGlbUrl(null);
+        }
+      })
       .catch(() => {});
   }, [token]);
 
@@ -356,6 +372,7 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
             <SceneContents
               measurements={measurements}
               garmentList={garmentList}
+              glbUrl={glbUrl}
             />
           </Suspense>
         </Canvas>

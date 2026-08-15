@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Measurements } from "@/types";
-import { api } from "@/lib/api";
+import { api, avatarApi, measurementsToApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
 import { getAverageMeasurements } from "@/lib/utils/chileanAverages";
 
@@ -31,6 +31,8 @@ export function BodyCapture({ defaultMeasurements, onComplete }: Props) {
   });
   const [measurements, setMeasurements] = useState<Measurements>(defaultMeasurements);
   const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const [autoFillMsg, setAutoFillMsg] = useState(false);
   const fileRefs = useRef<Partial<Record<PhotoKey, HTMLInputElement | null>>>({});
 
@@ -67,6 +69,19 @@ export function BodyCapture({ defaultMeasurements, onComplete }: Props) {
         setUploading(false);
       }
     }
+
+    if (token && photos.frontal) {
+      setGenerating(true);
+      setGenError(null);
+      try {
+        await avatarApi.generate(photos.frontal, measurementsToApi(measurements));
+      } catch {
+        setGenError("No pudimos generar tu avatar 3D en este momento. Puedes seguir usando el maniquí mientras tanto.");
+      } finally {
+        setGenerating(false);
+      }
+    }
+
     onComplete(defaultMeasurements);
   }
 
@@ -79,6 +94,7 @@ export function BodyCapture({ defaultMeasurements, onComplete }: Props) {
         border: "1px solid #e8e8e8",
         borderRadius: 12,
         overflow: "hidden",
+        position: "relative",
       }}
     >
       {/* Tabs */}
@@ -219,9 +235,36 @@ export function BodyCapture({ defaultMeasurements, onComplete }: Props) {
               </div>
             )}
 
+            {genError && (
+              <div
+                style={{
+                  backgroundColor: "#fdf0ee",
+                  border: "1px solid #f0b0a0",
+                  borderRadius: 6,
+                  padding: "10px 14px",
+                  marginBottom: 16,
+                  fontSize: 11,
+                  color: "#994433",
+                  lineHeight: 1.6,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: 8,
+                }}
+              >
+                <span>{genError}</span>
+                <button
+                  onClick={() => setGenError(null)}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#994433", fontSize: 13, lineHeight: 1, padding: 0 }}
+                >
+                  ×
+                </button>
+              </div>
+            )}
+
             <button
               onClick={handlePhotosContinue}
-              disabled={uploading}
+              disabled={uploading || generating}
               style={{
                 width: "100%",
                 padding: "14px 0",
@@ -233,11 +276,13 @@ export function BodyCapture({ defaultMeasurements, onComplete }: Props) {
                 color: "#fff",
                 border: "none",
                 borderRadius: 6,
-                cursor: uploading ? "wait" : "pointer",
-                opacity: uploading ? 0.7 : 1,
+                cursor: uploading || generating ? "wait" : "pointer",
+                opacity: uploading || generating ? 0.7 : 1,
               }}
             >
-              {uploading
+              {generating
+                ? "Generando tu avatar…"
+                : uploading
                 ? "Guardando fotos…"
                 : allPhotos && token
                 ? "Guardar fotos y continuar"
@@ -625,6 +670,45 @@ export function BodyCapture({ defaultMeasurements, onComplete }: Props) {
           </>
         )}
       </div>
+
+      {generating && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundColor: "rgba(255,255,255,0.92)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              border: "3px solid #e0e0dc",
+              borderTopColor: "#111",
+              borderRadius: "50%",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+          <p
+            style={{
+              margin: 0,
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              color: "#111",
+            }}
+          >
+            Generando tu avatar…
+          </p>
+          <style>{"@keyframes spin { to { transform: rotate(360deg); } }"}</style>
+        </div>
+      )}
     </div>
   );
 }

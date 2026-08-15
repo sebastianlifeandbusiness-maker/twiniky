@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { isAxiosError } from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
 import { avatarApi, apiToMeasurements, measurementsToApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
@@ -53,6 +54,8 @@ const SLIDER_GROUPS = [
 const SHOE_SIZES = [35, 36, 37, 38, 39, 40, 41, 42, 43, 44];
 
 function AvatarSetupForm() {
+  console.log("[AvatarSetupForm] render");
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const productId = searchParams.get("product");
@@ -65,6 +68,13 @@ function AvatarSetupForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoFillMsg, setAutoFillMsg] = useState(false);
+
+  const [glbUrl, setGlbUrl] = useState<string | null>(null);
+  const [uploadMode, setUploadMode] = useState(false);
+  const [photoGenerating, setPhotoGenerating] = useState(false);
+  const [photoGenError, setPhotoGenError] = useState<string | null>(null);
+  const [photoGenSuccess, setPhotoGenSuccess] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   // Los 3 parámetros de perfil son fuente de verdad: resetean todos los sliders
   useEffect(() => {
@@ -91,19 +101,46 @@ function AvatarSetupForm() {
     avatarApi.get()
       .then(({ data }) => {
         setMeasurements(apiToMeasurements(data));
+        setGlbUrl(data.avatar_glb_url ?? null);
         setHasExisting(true);
         // Ruta rápida: si viene de "Probar ahora" y ya tiene medidas → ir directo al probador
         if (productId) {
+          console.log("[AvatarSetupForm] redirect rápido a /tryon por productId — el form (y la sección de avatar) nunca se renderiza", { productId });
           router.replace(`/tryon?product=${productId}`);
           return;
         }
+        console.log("[AvatarSetupForm] medidas existentes cargadas, mostrando form", { glbUrl: data.avatar_glb_url ?? null });
         setLoading(false);
       })
       .catch(() => {
         // 404 → primer uso, mostrar form con defaults
+        console.log("[AvatarSetupForm] sin medidas previas (404), mostrando form con defaults");
         setLoading(false);
       });
   }, [token, brandToken, router, productId]);
+
+  async function handlePhotoSelected(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setPhotoGenerating(true);
+    setPhotoGenError(null);
+    setPhotoGenSuccess(false);
+    try {
+      const { data } = await avatarApi.generate(file, measurementsToApi(measurements));
+      setGlbUrl(data.avatar_glb_url ?? null);
+      setPhotoGenSuccess(true);
+      setUploadMode(false);
+    } catch (err) {
+      // TEMP DEBUG — mostrando el error real del backend para diagnosticar, revertir a mensaje genérico después
+      const detail = isAxiosError(err) ? err.response?.data?.detail ?? err.message : String(err);
+      console.error("[AvatarSetup] avatar generate error", err);
+      setPhotoGenError(`[DEBUG] ${detail}`);
+    } finally {
+      setPhotoGenerating(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -155,6 +192,188 @@ function AvatarSetupForm() {
           ? "Ajusta tus medidas para que el probador 3D refleje tu cuerpo con precisión."
           : "Ingresa tus medidas para crear tu maniquí personalizado en el probador 3D."}
       </p>
+
+      {/* ── Avatar fotorrealista ── */}
+      <div style={{ marginBottom: 32 }}>
+        <p
+          style={{
+            margin: "0 0 16px",
+            fontSize: 9,
+            fontWeight: 700,
+            letterSpacing: "0.22em",
+            textTransform: "uppercase",
+            color: "#bbb",
+            borderBottom: "1px solid #f0f0ee",
+            paddingBottom: 6,
+          }}
+        >
+          Avatar fotorrealista
+        </p>
+
+        {!uploadMode && glbUrl && (
+          <div
+            style={{
+              border: "1px solid #e0e0dc",
+              borderRadius: 8,
+              padding: "14px 16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            <p style={{ margin: 0, fontSize: 12, color: "#333", lineHeight: 1.6 }}>
+              Ya tienes un avatar 3D generado.
+            </p>
+            <button
+              onClick={() => { setUploadMode(true); setPhotoGenError(null); setPhotoGenSuccess(false); }}
+              style={{
+                padding: "9px 16px",
+                fontSize: 9,
+                fontWeight: 700,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                border: "1px solid #111",
+                backgroundColor: "#fff",
+                color: "#111",
+                cursor: "pointer",
+                borderRadius: 6,
+                whiteSpace: "nowrap",
+              }}
+            >
+              Regenerar avatar
+            </button>
+          </div>
+        )}
+
+        {!uploadMode && !glbUrl && (
+          <button
+            onClick={() => { setUploadMode(true); setPhotoGenError(null); setPhotoGenSuccess(false); }}
+            style={{
+              width: "100%",
+              padding: "13px 0",
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              border: "1px solid #111",
+              backgroundColor: "#fff",
+              color: "#111",
+              cursor: "pointer",
+              borderRadius: 6,
+              transition: "background-color 0.15s, color 0.15s",
+            }}
+          >
+            Generar mi avatar 3D desde una foto
+          </button>
+        )}
+
+        {uploadMode && (
+          <div
+            style={{
+              border: "1px dashed #ccc",
+              borderRadius: 8,
+              padding: "20px 16px",
+              textAlign: "center",
+            }}
+          >
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={handlePhotoSelected}
+            />
+            {photoGenerating ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+                <div
+                  style={{
+                    width: 24,
+                    height: 24,
+                    border: "3px solid #e0e0dc",
+                    borderTopColor: "#111",
+                    borderRadius: "50%",
+                    animation: "spin 0.8s linear infinite",
+                  }}
+                />
+                <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#111" }}>
+                  Generando tu avatar 3D…
+                </p>
+                <style>{"@keyframes spin { to { transform: rotate(360deg); } }"}</style>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => photoInputRef.current?.click()}
+                  style={{
+                    padding: "10px 20px",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
+                    border: "none",
+                    backgroundColor: "#111",
+                    color: "#fff",
+                    cursor: "pointer",
+                    borderRadius: 6,
+                  }}
+                >
+                  Elegir foto
+                </button>
+                {glbUrl && (
+                  <p style={{ margin: "12px 0 0" }}>
+                    <button
+                      onClick={() => setUploadMode(false)}
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 10, color: "#999", textDecoration: "underline" }}
+                    >
+                      Cancelar
+                    </button>
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {photoGenError && (
+          <div
+            style={{
+              backgroundColor: "#fdf0ee",
+              border: "1px solid #f0b0a0",
+              borderRadius: 6,
+              padding: "10px 14px",
+              marginTop: 12,
+              fontSize: 11,
+              color: "#994433",
+              lineHeight: 1.6,
+            }}
+          >
+            {photoGenError}
+          </div>
+        )}
+
+        {photoGenSuccess && (
+          <div
+            style={{
+              backgroundColor: "#f0f7ee",
+              border: "1px solid #b8d8b0",
+              borderRadius: 6,
+              padding: "10px 14px",
+              marginTop: 12,
+              fontSize: 11,
+              color: "#2d6a20",
+              lineHeight: 1.6,
+            }}
+          >
+            ¡Avatar generado correctamente!
+          </div>
+        )}
+
+        <p style={{ margin: "10px 0 0", fontSize: 10, color: "#bbb", lineHeight: 1.6 }}>
+          Opcional — puedes ignorar esto y ajustar tu cuerpo con los controles de abajo.
+        </p>
+      </div>
 
       {autoFillMsg && (
         <div
