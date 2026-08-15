@@ -17,7 +17,7 @@ export default function HomePage() {
   const { token: brandToken } = useBrandStore();
 
   useEffect(() => {
-    if (brandToken) router.push("/brands/dashboard");
+    if (brandToken) router.replace("/brands/dashboard");
   }, [brandToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: brands } = useQuery<Brand[]>({

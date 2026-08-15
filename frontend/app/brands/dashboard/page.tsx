@@ -90,7 +90,7 @@ export default function BrandDashboardPage() {
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    if (mounted && !token) router.push("/brands/login");
+    if (mounted && !token) router.replace("/brands/login");
   }, [mounted, token, router]);
 
   useEffect(() => {

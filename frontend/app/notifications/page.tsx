@@ -16,7 +16,7 @@ export default function NotificationsPage() {
   const [cancelling, setCancelling] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) { router.push("/login"); return; }
+    if (!token) { router.replace("/login"); return; }
     stockAlertsApi.list()
       .then(({ data }) => { setAlerts(data); setCount(data.length); })
       .catch(() => {})
@@ -35,6 +35,8 @@ export default function NotificationsPage() {
       setCancelling(null);
     }
   }
+
+  if (!token) return null;
 
   return (
     <div style={{ backgroundColor: "#fff", minHeight: "100vh" }}>

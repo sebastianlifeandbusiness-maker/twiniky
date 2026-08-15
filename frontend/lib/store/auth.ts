@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { User } from "@/types";
 import { useTryOnStore } from "./tryon";
+import { useAlertsStore } from "./alerts";
 
 interface AuthState {
   user: User | null;
@@ -27,6 +28,7 @@ export const useAuthStore = create<AuthState>()(
       },
       logout: () => {
         useTryOnStore.getState().clearAll();
+        useAlertsStore.getState().setCount(0);
         localStorage.removeItem("token");
         set({ user: null, token: null });
       },

@@ -21,7 +21,7 @@ export default function FavoritesPage() {
 
   useEffect(() => {
     if (!mounted) return;
-    if (!token) { router.push("/login"); return; }
+    if (!token) { router.replace("/login"); return; }
     favoritesApi.list()
       .then(({ data }) => setProducts(data))
       .catch(() => {})
