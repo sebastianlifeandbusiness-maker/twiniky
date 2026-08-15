@@ -95,10 +95,18 @@ async def _notify_stock_alerts(db: AsyncSession, product: Product) -> None:
         .where(StockAlert.product_id == product.id)
         .where(StockAlert.is_active.is_(True))
     )
+    image_url = product.image_urls[0] if product.image_urls else None
+
     for alert, user in user_result.all():
         alert.is_active = False
         alert.notified_at = now
-        await send_stock_notification(user_email=user.email, product_name=product.name, size=alert.size)
+        await send_stock_notification(
+            user_email=user.email,
+            product_name=product.name,
+            size=alert.size,
+            product_id=str(product.id),
+            image_url=image_url,
+        )
 
     # Alertas de invitados
     guest_result = await db.execute(
@@ -109,7 +117,13 @@ async def _notify_stock_alerts(db: AsyncSession, product: Product) -> None:
     for guest_alert in guest_result.scalars().all():
         guest_alert.is_active = False
         guest_alert.notified_at = now
-        await send_stock_notification(user_email=guest_alert.email, product_name=product.name, size=guest_alert.size)
+        await send_stock_notification(
+            user_email=guest_alert.email,
+            product_name=product.name,
+            size=guest_alert.size,
+            product_id=str(product.id),
+            image_url=image_url,
+        )
 
     await db.commit()
 

@@ -44,10 +44,15 @@ export default function CheckoutPage() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (mounted && items.length === 0) {
+      router.replace("/cart");
+    }
+  }, [mounted, items.length, router]);
+
   if (!mounted) return null;
 
   if (items.length === 0) {
-    router.replace("/cart");
     return null;
   }
 

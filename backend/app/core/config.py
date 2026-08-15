@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     AWS_S3_BUCKET: str = "twiniky-assets"
     AWS_REGION: str = "us-east-1"
 
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = "onboarding@resend.dev"
+    FRONTEND_URL: str = "http://localhost:3000"
+
     class Config:
         env_file = ".env"
         case_sensitive = True

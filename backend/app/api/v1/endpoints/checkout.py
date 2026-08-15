@@ -1,3 +1,5 @@
+import json
+
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from jose import JWTError, jwt
 from sqlalchemy import select
@@ -5,10 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_optional_user
 from app.db.session import get_db
+from app.models.brand import Brand
 from app.models.order import Order, OrderStatus
 from app.models.product import Product
 from app.models.user import User
 from app.schemas.order import CheckoutCreate, OrderOut
+from app.services.email import send_email
+from app.services.email_templates import brand_order_notification_email, buyer_confirmation_email
 
 router = APIRouter()
 
@@ -41,6 +46,7 @@ async def checkout(
     acting_brand_id = _brand_id_from_token(x_brand_token)
 
     created: list[Order] = []
+    order_products: list[Product] = []
 
     for item in payload.items:
         result = await db.execute(select(Product).where(Product.id == item.product_id))
@@ -68,9 +74,72 @@ async def checkout(
         )
         db.add(order)
         created.append(order)
+        order_products.append(product)
 
     await db.commit()
     for o in created:
         await db.refresh(o)
 
+    await _send_order_emails(db, current_user, payload.shipping_address, list(zip(created, order_products)))
+
     return created
+
+
+def _parse_shipping_address(raw: str) -> dict:
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError):
+        return {}
+
+
+async def _send_order_emails(
+    db: AsyncSession,
+    current_user: User | None,
+    shipping_address_raw: str,
+    order_products: list[tuple[Order, Product]],
+) -> None:
+    shipping_address = _parse_shipping_address(shipping_address_raw)
+    buyer_email = current_user.email if current_user else shipping_address.get("email")
+
+    if buyer_email:
+        buyer_items = [
+            {"name": product.name, "size": order.size, "quantity": order.quantity, "price": order.total_price}
+            for order, product in order_products
+        ]
+        first_order = order_products[0][0]
+        total = sum((order.total_price for order, _ in order_products), start=first_order.total_price * 0)
+        await send_email(
+            to=buyer_email,
+            subject="¡Tu pedido en Twiniky está confirmado! 🛍️",
+            html=buyer_confirmation_email(
+                order_number=str(first_order.id),
+                items=buyer_items,
+                total=total,
+                shipping_address=shipping_address,
+            ),
+        )
+
+    brand_ids = {product.brand_id for _, product in order_products if product.brand_id}
+    brands_by_id: dict = {}
+    if brand_ids:
+        result = await db.execute(select(Brand).where(Brand.id.in_(brand_ids)))
+        brands_by_id = {b.id: b for b in result.scalars().all()}
+
+    for order, product in order_products:
+        if not product.brand_id:
+            continue
+        brand = brands_by_id.get(product.brand_id)
+        if not brand:
+            continue
+        await send_email(
+            to=brand.email,
+            subject="¡Nuevo pedido recibido en Twiniky! 📦",
+            html=brand_order_notification_email(
+                order_number=str(order.id),
+                product_name=product.name,
+                size=order.size,
+                quantity=order.quantity,
+                price=order.total_price,
+                shipping_address=shipping_address,
+            ),
+        )
