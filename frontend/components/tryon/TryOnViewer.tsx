@@ -1,8 +1,9 @@
 "use client";
 
 import { Suspense, useState, useEffect, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import type { Group } from "three";
 import { MannequinFigure } from "./MannequinFigure";
 import { AvatarModel } from "./AvatarModel";
 import { GarmentOverlay } from "./GarmentOverlay";
@@ -71,37 +72,72 @@ interface Props {
   productId: string | null;
 }
 
+const AUTO_ROTATE_SPEED = 0.003; // rad/frame
+const AUTO_ROTATE_RESUME_MS = 3000; // retoma la rotación 3s después de soltar el drag
+
+function AutoRotatingGroup({
+  pausedRef,
+  children,
+}: {
+  pausedRef: React.MutableRefObject<boolean>;
+  children: React.ReactNode;
+}) {
+  const groupRef = useRef<Group>(null);
+  useFrame(() => {
+    if (groupRef.current && !pausedRef.current) {
+      groupRef.current.rotation.y += AUTO_ROTATE_SPEED;
+    }
+  });
+  return <group ref={groupRef}>{children}</group>;
+}
+
 function SceneContents({
   measurements,
   garmentList,
   glbUrl,
+  autoRotatePausedRef,
+  onOrbitStart,
+  onOrbitEnd,
 }: {
   measurements: Measurements;
   garmentList: Array<{ category: string; effectiveColor: string | null }>;
   glbUrl: string | null;
+  autoRotatePausedRef: React.MutableRefObject<boolean>;
+  onOrbitStart: () => void;
+  onOrbitEnd: () => void;
 }) {
   return (
     <>
-      <ambientLight intensity={0.8} color="#ffffff" />
+      <ambientLight intensity={1.2} color="#ffffff" />
       <directionalLight
         position={[5, 10, 5]}
-        intensity={1.0}
+        intensity={1.5}
         color="#ffffff"
         castShadow
       />
-      {glbUrl ? (
-        <AvatarModel url={glbUrl} />
-      ) : (
-        <MannequinFigure measurements={measurements} skinTone={measurements.skinTone} />
-      )}
-      {garmentList.map((g, i) => (
-        <GarmentOverlay
-          key={i}
-          measurements={measurements}
-          garmentColor={g.effectiveColor}
-          category={g.category}
-        />
-      ))}
+      <directionalLight
+        position={[0, 5, 5]}
+        intensity={0.8}
+        color="#ffffff"
+      />
+      <pointLight position={[0, -2, 3]} intensity={0.3} color="#ffffff" />
+      <AutoRotatingGroup pausedRef={autoRotatePausedRef}>
+        {glbUrl ? (
+          <AvatarModel url={glbUrl} />
+        ) : (
+          <>
+            <MannequinFigure measurements={measurements} skinTone={measurements.skinTone} />
+            {garmentList.map((g, i) => (
+              <GarmentOverlay
+                key={i}
+                measurements={measurements}
+                garmentColor={g.effectiveColor}
+                category={g.category}
+              />
+            ))}
+          </>
+        )}
+      </AutoRotatingGroup>
       <OrbitControls
         enablePan={false}
         minDistance={1.4}
@@ -109,6 +145,8 @@ function SceneContents({
         minPolarAngle={Math.PI / 8}
         maxPolarAngle={Math.PI / 1.6}
         target={[0, 0.85, 0]}
+        onStart={onOrbitStart}
+        onEnd={onOrbitEnd}
       />
     </>
   );
@@ -120,6 +158,21 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
   const [hovScene, setHovScene] = useState<number | null>(null);
   const [measurements, setMeasurements] = useState<Measurements>(initialMeasurements);
   const [glbUrl, setGlbUrl] = useState<string | null>(null);
+
+  const autoRotatePausedRef = useRef(false);
+  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleOrbitStart() {
+    autoRotatePausedRef.current = true;
+    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+  }
+
+  function handleOrbitEnd() {
+    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
+    resumeTimeoutRef.current = setTimeout(() => {
+      autoRotatePausedRef.current = false;
+    }, AUTO_ROTATE_RESUME_MS);
+  }
 
   const { token } = useAuthStore();
   const { brand: brandSession, token: brandToken } = useBrandStore();
@@ -373,6 +426,9 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
               measurements={measurements}
               garmentList={garmentList}
               glbUrl={glbUrl}
+              autoRotatePausedRef={autoRotatePausedRef}
+              onOrbitStart={handleOrbitStart}
+              onOrbitEnd={handleOrbitEnd}
             />
           </Suspense>
         </Canvas>

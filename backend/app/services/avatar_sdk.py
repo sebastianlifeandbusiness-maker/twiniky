@@ -248,20 +248,33 @@ async def download_and_save_glb(export_file_url: str, access_token: str, user_id
     content_type = response.headers.get("content-type", "")
     print(f"[Avatar SDK Export] download content-type={content_type!r} bytes={len(response.content)}")
 
-    glb_bytes = response.content
+    user_dir = UPLOAD_DIR / str(user_id)
+    user_dir.mkdir(parents=True, exist_ok=True)
+
     if "zip" in content_type or response.content[:2] == b"PK":
         # Avatar SDK entrega el export como un .zip (modelo + texturas), aunque se pida embed=true.
+        # El .glb referencia la textura por nombre de archivo relativo (ej. "model.jpg"), así que
+        # hay que guardar TODOS los archivos del zip juntos en la misma carpeta -- si solo se
+        # guarda el .glb, el navegador no puede resolver la textura y el material queda gris/blanco.
+        glb_name = None
         with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
-            glb_names = [n for n in zf.namelist() if n.lower().endswith(".glb")]
-            if not glb_names:
-                raise AvatarSDKError("El export de Avatar SDK no contiene un archivo .glb.")
-            glb_bytes = zf.read(glb_names[0])
+            for info in zf.infolist():
+                if info.is_dir():
+                    continue
+                filename = info.filename.rsplit("/", 1)[-1]  # descarta el prefijo "avatar/" del zip
+                if not filename or filename.lower().endswith(".json"):
+                    continue  # metadata de Avatar SDK, no la necesita el visor
+                (user_dir / filename).write_bytes(zf.read(info))
+                if filename.lower().endswith(".glb"):
+                    glb_name = filename
 
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-    file_path = UPLOAD_DIR / f"{user_id}.glb"
-    file_path.write_bytes(glb_bytes)
+        if not glb_name:
+            raise AvatarSDKError("El export de Avatar SDK no contiene un archivo .glb.")
+    else:
+        glb_name = "model.glb"
+        (user_dir / glb_name).write_bytes(response.content)
 
-    return f"/uploads/avatars/{user_id}.glb"
+    return f"/uploads/avatars/{user_id}/{glb_name}"
 
 
 async def generate_avatar_for_user(
