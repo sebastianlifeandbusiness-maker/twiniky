@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from jose import jwt, JWTError
+from app.core.config import settings
 from app.db.session import get_db
 from app.models.brand import Brand
 from app.models.brand_tryon_selection import BrandTryOnSelection
@@ -59,8 +60,8 @@ class BrandCredentialsUpdate(BaseModel):
     current_password: str
     new_password: str | None = None
 
-SECRET_KEY = "twiniky-brands-secret-2026"
-ALGORITHM = "HS256"
+SECRET_KEY = settings.BRAND_SECRET_KEY
+ALGORITHM = settings.ALGORITHM
 
 def hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")

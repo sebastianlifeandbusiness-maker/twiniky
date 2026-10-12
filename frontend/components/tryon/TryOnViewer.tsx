@@ -1,12 +1,14 @@
 "use client";
 
-import { Suspense, useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { OrbitControls, useGLTF } from "@react-three/drei";
+import * as THREE from "three";
+import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import type { Group } from "three";
 import { MannequinFigure } from "./MannequinFigure";
 import { AvatarModel } from "./AvatarModel";
-import { GarmentOverlay } from "./GarmentOverlay";
+import { GarmentOverlay, resolveColor } from "./GarmentOverlay";
 import { useProduct } from "@/lib/hooks/useProducts";
 import { formatCLP } from "@/lib/utils/format";
 import Link from "next/link";
@@ -17,9 +19,10 @@ import {
   type ZoneId,
   type ZoneGarment,
 } from "@/lib/store/tryon";
-import { avatarApi, apiToMeasurements, getBackendOrigin, tryonSelectionsApi, brandTryonSelectionsApi } from "@/lib/api";
+import { avatarApi, apiToMeasurements, getBackendOrigin, tryonSelectionsApi, brandTryonSelectionsApi, tryonApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/store/auth";
 import { useBrandStore } from "@/lib/store/brand";
+import { useCartStore } from "@/lib/store/cart";
 import type { Measurements } from "@/types";
 
 const SCENES = [
@@ -75,6 +78,34 @@ interface Props {
 const AUTO_ROTATE_SPEED = 0.003; // rad/frame
 const AUTO_ROTATE_RESUME_MS = 3000; // retoma la rotación 3s después de soltar el drag
 
+// Hardcoded mientras solo existe un modelo 3D de prenda (polera).
+// Ya viene posicionada para el avatar real (torso, pies en y=0, altura ~1.74m).
+const TSHIRT_GLB_URL = "http://localhost:8000/uploads/avatars/tshirt_3d.glb";
+
+function GarmentGLB({ url, color }: { url: string; color: string }) {
+  const { scene } = useGLTF(url);
+  const cloned = useMemo(() => cloneSkeleton(scene), [scene]);
+
+  useEffect(() => {
+    cloned.traverse((obj) => {
+      if ((obj as THREE.Mesh).isMesh) {
+        (obj as THREE.Mesh).material = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(color),
+          roughness: 0.7,
+          metalness: 0.0,
+          transparent: true,
+          opacity: 0.95,
+          side: THREE.DoubleSide,
+        });
+      }
+    });
+  }, [cloned, color]);
+
+  return <primitive object={cloned} />;
+}
+
+useGLTF.preload(TSHIRT_GLB_URL);
+
 function AutoRotatingGroup({
   pausedRef,
   children,
@@ -100,7 +131,7 @@ function SceneContents({
   onOrbitEnd,
 }: {
   measurements: Measurements;
-  garmentList: Array<{ category: string; effectiveColor: string | null }>;
+  garmentList: Array<{ zoneId: ZoneId; category: string; effectiveColor: string | null }>;
   glbUrl: string | null;
   autoRotatePausedRef: React.MutableRefObject<boolean>;
   onOrbitStart: () => void;
@@ -122,20 +153,20 @@ function SceneContents({
       />
       <pointLight position={[0, -2, 3]} intensity={0.3} color="#ffffff" />
       <AutoRotatingGroup pausedRef={autoRotatePausedRef}>
-        {glbUrl ? (
-          <AvatarModel url={glbUrl} />
-        ) : (
-          <>
-            <MannequinFigure measurements={measurements} skinTone={measurements.skinTone} />
-            {garmentList.map((g, i) => (
-              <GarmentOverlay
-                key={i}
-                measurements={measurements}
-                garmentColor={g.effectiveColor}
-                category={g.category}
-              />
-            ))}
-          </>
+        {glbUrl ? <AvatarModel url={glbUrl} /> : (
+          <MannequinFigure measurements={measurements} skinTone={measurements.skinTone} />
+        )}
+        {garmentList.map((g, i) =>
+          g.zoneId === "upper" ? (
+            <GarmentGLB key={i} url={TSHIRT_GLB_URL} color={resolveColor(g.effectiveColor)} />
+          ) : (
+            <GarmentOverlay
+              key={i}
+              measurements={measurements}
+              garmentColor={g.effectiveColor}
+              category={g.category}
+            />
+          )
         )}
       </AutoRotatingGroup>
       <OrbitControls
@@ -158,6 +189,11 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
   const [hovScene, setHovScene] = useState<number | null>(null);
   const [measurements, setMeasurements] = useState<Measurements>(initialMeasurements);
   const [glbUrl, setGlbUrl] = useState<string | null>(null);
+  const [hasSelfiePhoto, setHasSelfiePhoto] = useState(false);
+  const [tryonOpen, setTryonOpen] = useState(false);
+  const [tryonLoading, setTryonLoading] = useState(false);
+  const [tryonError, setTryonError] = useState<string | null>(null);
+  const [tryonResult, setTryonResult] = useState<string | null>(null);
 
   const autoRotatePausedRef = useRef(false);
   const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -190,6 +226,7 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
         } else {
           setGlbUrl(null);
         }
+        setHasSelfiePhoto(!!data.selfie_photo_url);
       })
       .catch(() => {});
   }, [token]);
@@ -244,14 +281,54 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
   }, [product, productId, setGarment]);
 
   const garmentList = ZONES
-    .map((z) => garments[z.id])
-    .filter((g): g is ZoneGarment => g !== undefined)
-    .map((g) => ({
-      category: g.category,
-      effectiveColor: g.overrideColor ?? g.color,
-    }));
+    .map((z) => {
+      const g = garments[z.id];
+      if (!g) return null;
+      return { zoneId: z.id, category: g.category, effectiveColor: g.overrideColor ?? g.color };
+    })
+    .filter((g): g is { zoneId: ZoneId; category: string; effectiveColor: string | null } => g !== null);
 
   const activeZonesWithGarments = ZONES.filter((z) => garments[z.id] !== undefined);
+  const firstGarment = activeZonesWithGarments[0] ? garments[activeZonesWithGarments[0].id] : undefined;
+
+  const { addItem } = useCartStore();
+  const { data: tryonProduct } = useProduct(firstGarment?.productId ?? "");
+
+  function closeTryOn() {
+    setTryonOpen(false);
+    setTryonResult(null);
+    setTryonError(null);
+  }
+
+  async function handleVirtualTryOn() {
+    if (!firstGarment) return;
+
+    setTryonOpen(true);
+    setTryonResult(null);
+
+    if (!hasSelfiePhoto) {
+      setTryonError("Sube tu foto en Configurar Avatar para usar esta función.");
+      return;
+    }
+
+    setTryonError(null);
+    setTryonLoading(true);
+    try {
+      const { data } = await tryonApi.virtualTryOn(firstGarment.productId);
+      setTryonResult(data.image_base64);
+    } catch (err) {
+      const detail =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setTryonError(detail || "No se pudo generar la prueba virtual. Intenta de nuevo.");
+    } finally {
+      setTryonLoading(false);
+    }
+  }
+
+  function handleAddToCartFromTryOn() {
+    if (tryonProduct) addItem(tryonProduct, null);
+    closeTryOn();
+  }
 
   return (
     <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
@@ -504,6 +581,27 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
           </div>
         </div>
 
+        {/* Ver cómo me queda (IDM-VTON) */}
+        {firstGarment && (
+          <button
+            onClick={handleVirtualTryOn}
+            style={{
+              padding: "10px 0",
+              fontSize: 9,
+              fontWeight: 700,
+              letterSpacing: "0.16em",
+              textTransform: "uppercase",
+              border: "none",
+              borderRadius: 6,
+              backgroundColor: "#111",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Ver cómo me queda
+          </button>
+        )}
+
         {/* Editar avatar */}
         <Link
           href="/avatar/setup"
@@ -693,6 +791,162 @@ export function TryOnViewer({ measurements: initialMeasurements, onChangeMeasure
                 No
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: prueba virtual (IDM-VTON) ── */}
+      {tryonOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0,0,0,0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={closeTryOn}
+        >
+          <div
+            style={{
+              backgroundColor: "#fff",
+              borderRadius: 12,
+              padding: "28px 28px 24px",
+              maxWidth: 420,
+              width: "90%",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+              textAlign: "center",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {tryonLoading && (
+              <>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    margin: "8px auto 18px",
+                    border: "3px solid #eee",
+                    borderTopColor: "#111",
+                    borderRadius: "50%",
+                    animation: "twiniky-spin 0.8s linear infinite",
+                  }}
+                />
+                <style>{`@keyframes twiniky-spin { to { transform: rotate(360deg); } }`}</style>
+                <p style={{ margin: 0, fontSize: 13, color: "#555" }}>
+                  Generando tu prueba virtual…
+                </p>
+                <p style={{ margin: "6px 0 0", fontSize: 11, color: "#aaa" }}>
+                  Esto puede tardar unos 26 segundos.
+                </p>
+              </>
+            )}
+
+            {!tryonLoading && tryonError && (
+              <>
+                <p style={{ margin: "0 0 20px", fontSize: 13, color: "#555", lineHeight: 1.6 }}>
+                  {tryonError}
+                </p>
+                <div style={{ display: "flex", gap: 10 }}>
+                  {!hasSelfiePhoto && (
+                    <Link
+                      href="/avatar/setup"
+                      style={{
+                        flex: 1,
+                        padding: "10px 0",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        backgroundColor: "#111",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 6,
+                        cursor: "pointer",
+                        textDecoration: "none",
+                      }}
+                    >
+                      Configurar avatar
+                    </Link>
+                  )}
+                  <button
+                    onClick={closeTryOn}
+                    style={{
+                      flex: 1,
+                      padding: "10px 0",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      backgroundColor: "#f0f0ee",
+                      color: "#333",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </>
+            )}
+
+            {!tryonLoading && !tryonError && tryonResult && (
+              <>
+                <img
+                  src={`data:image/png;base64,${tryonResult}`}
+                  alt="Prueba virtual"
+                  style={{
+                    width: "100%",
+                    maxHeight: 480,
+                    objectFit: "contain",
+                    borderRadius: 8,
+                    marginBottom: 18,
+                    backgroundColor: "#fafaf8",
+                  }}
+                />
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    onClick={handleAddToCartFromTryOn}
+                    style={{
+                      flex: 1,
+                      padding: "10px 0",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      backgroundColor: "#111",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Agregar al carrito
+                  </button>
+                  <button
+                    onClick={closeTryOn}
+                    style={{
+                      flex: 1,
+                      padding: "10px 0",
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      backgroundColor: "#f0f0ee",
+                      color: "#333",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

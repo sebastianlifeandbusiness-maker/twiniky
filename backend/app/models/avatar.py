@@ -32,6 +32,7 @@ class AvatarMeasurements(Base):
     weight: Mapped[float | None] = mapped_column(Float, nullable=True)
     skin_tone: Mapped[str | None] = mapped_column(String(10), nullable=True)
     avatar_glb_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    selfie_photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()
     )

@@ -1,12 +1,6 @@
-import os
-
+from pydantic import Field
 from pydantic_settings import BaseSettings
 from typing import List
-
-# TEMP DEBUG — quitar después de diagnosticar
-print(f"[Config] CWD: {os.getcwd()}")
-print(f"[Config] .env path: {os.path.abspath('.env')}")
-print(f"[Config] AVATAR_SDK_CLIENT_ID: {os.environ.get('AVATAR_SDK_CLIENT_ID', 'NO ENCONTRADO')}")
 
 
 class Settings(BaseSettings):
@@ -15,7 +9,11 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost:5432/twiniky"
 
-    SECRET_KEY: str = "changeme-secret-key"
+    # Sin valor por defecto a propósito: cualquier clave escrita aquí quedaría pública en GitHub.
+    # Si faltan en .env el servidor no arranca. Generar con:
+    #   python -c "import secrets; print(secrets.token_urlsafe(48))"
+    SECRET_KEY: str = Field(min_length=32)
+    BRAND_SECRET_KEY: str = Field(min_length=32)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 14  # 14 days
 
@@ -35,13 +33,11 @@ class Settings(BaseSettings):
     AVATAR_SDK_BASE_URL: str = "https://api.avatarsdk.com"
     AVATAR_SDK_PIPELINE: str = "body_0.3"
 
+    SEGMIND_API_KEY: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = True
 
 
 settings = Settings()
-
-# TEMP DEBUG — quitar después de diagnosticar
-print(f"[Config] settings.AVATAR_SDK_CLIENT_ID (tal como quedó en el objeto Settings): {settings.AVATAR_SDK_CLIENT_ID!r}")
-print(f"[Config] ¿existe el archivo en esa ruta?: {os.path.isfile(os.path.abspath('.env'))}")

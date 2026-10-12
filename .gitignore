@@ -5,6 +5,12 @@ __pycache__/
 .venv/
 .env
 
+# Archivos subidos por usuarios (selfies, avatares). Solo se versiona la polera 3D de prueba.
+backend/uploads/*
+!backend/uploads/avatars/
+backend/uploads/avatars/*
+!backend/uploads/avatars/tshirt_3d.glb
+
 # Node
 node_modules/
 .next/

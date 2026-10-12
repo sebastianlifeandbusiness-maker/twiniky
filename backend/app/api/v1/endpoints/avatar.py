@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,7 +9,13 @@ from app.db.session import get_db
 from app.models.avatar import AvatarMeasurements
 from app.models.user import User
 from app.schemas.avatar import AvatarMeasurementsIn, AvatarMeasurementsOut
-from app.services.avatar_sdk import AvatarSDKError, generate_avatar_for_user, get_access_token, get_avatar_status
+from app.services.avatar_sdk import (
+    UPLOAD_DIR,
+    AvatarSDKError,
+    generate_avatar_for_user,
+    get_access_token,
+    get_avatar_status,
+)
 
 router = APIRouter()
 
@@ -93,6 +101,13 @@ async def generate_avatar(
     except AvatarSDKError as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
 
+    suffix = Path(photo.filename or "selfie.jpg").suffix or ".jpg"
+    user_dir = UPLOAD_DIR / str(current_user.id)
+    user_dir.mkdir(parents=True, exist_ok=True)
+    selfie_filename = f"selfie{suffix}"
+    (user_dir / selfie_filename).write_bytes(photo_bytes)
+    selfie_url = f"/uploads/avatars/{current_user.id}/{selfie_filename}"
+
     result = await db.execute(
         select(AvatarMeasurements).where(AvatarMeasurements.user_id == current_user.id)
     )
@@ -106,6 +121,7 @@ async def generate_avatar(
             setattr(row, field, value)
 
     row.avatar_glb_url = glb_url
+    row.selfie_photo_url = selfie_url
 
     await db.commit()
     await db.refresh(row)

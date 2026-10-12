@@ -19,7 +19,7 @@ const ES_COLORS: Record<string, string> = {
   lavanda: "#d8c0e8", plateado: "#c0c0c0",   dorado: "#d4a820",
 };
 
-function resolveColor(raw: string | null | undefined): string {
+export function resolveColor(raw: string | null | undefined): string {
   if (!raw) return "#6b8cba"; // azul neutro visible contra todos los fondos de escena
   return ES_COLORS[raw.toLowerCase().trim()] ?? raw;
 }

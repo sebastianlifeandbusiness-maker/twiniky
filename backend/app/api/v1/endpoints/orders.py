@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_current_user
 from app.db.session import get_db
 from app.models.order import Order, OrderStatus
-from app.models.product import Product
 from app.models.user import User
 from app.schemas.order import CheckoutCreate, OrderCreate, OrderOut
+from app.services.product import ProductService
 
 router = APIRouter()
 
@@ -36,14 +36,9 @@ async def checkout(
 
     created: list[Order] = []
 
+    products = ProductService(db)
     for item in payload.items:
-        result = await db.execute(select(Product).where(Product.id == item.product_id))
-        product = result.scalar_one_or_none()
-        if not product:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Producto {item.product_id} no encontrado",
-            )
+        product = await products.reserve_stock(item.product_id, item.quantity)
 
         order = Order(
             buyer_id=current_user.id,
@@ -70,10 +65,7 @@ async def create_order(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(Product).where(Product.id == payload.product_id))
-    product = result.scalar_one_or_none()
-    if not product:
-        raise HTTPException(status_code=404, detail="Producto no encontrado")
+    product = await ProductService(db).reserve_stock(payload.product_id, payload.quantity)
 
     order = Order(
         buyer_id=current_user.id,

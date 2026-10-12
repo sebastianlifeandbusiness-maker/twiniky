@@ -5,6 +5,7 @@ from jose import JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.deps import get_optional_user
 from app.db.session import get_db
 from app.models.brand import Brand
@@ -13,19 +14,16 @@ from app.models.product import Product
 from app.models.user import User
 from app.schemas.order import CheckoutCreate, OrderOut
 from app.services.email import send_email
+from app.services.product import ProductService
 from app.services.email_templates import brand_order_notification_email, buyer_confirmation_email
 
 router = APIRouter()
-
-_BRAND_SECRET = "twiniky-brands-secret-2026"
-_BRAND_ALGORITHM = "HS256"
-
 
 def _brand_id_from_token(token: str | None) -> str | None:
     if not token:
         return None
     try:
-        payload = jwt.decode(token, _BRAND_SECRET, algorithms=[_BRAND_ALGORITHM])
+        payload = jwt.decode(token, settings.BRAND_SECRET_KEY, algorithms=[settings.ALGORITHM])
         if payload.get("type") == "brand":
             return payload.get("sub")
     except JWTError:
@@ -48,14 +46,9 @@ async def checkout(
     created: list[Order] = []
     order_products: list[Product] = []
 
+    products = ProductService(db)
     for item in payload.items:
-        result = await db.execute(select(Product).where(Product.id == item.product_id))
-        product = result.scalar_one_or_none()
-        if not product:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Producto {item.product_id} no encontrado",
-            )
+        product = await products.reserve_stock(item.product_id, item.quantity)
 
         if acting_brand_id and product.brand_id and str(product.brand_id) == acting_brand_id:
             raise HTTPException(

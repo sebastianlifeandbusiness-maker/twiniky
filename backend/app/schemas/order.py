@@ -2,21 +2,21 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.order import OrderStatus
 
 
 class OrderCreate(BaseModel):
     product_id: uuid.UUID
-    quantity: int = 1
+    quantity: int = Field(default=1, ge=1)
     size: str | None = None
     shipping_address: str
 
 
 class CheckoutItem(BaseModel):
     product_id: uuid.UUID
-    quantity: int = 1
+    quantity: int = Field(default=1, ge=1)
     size: str | None = None
 
 

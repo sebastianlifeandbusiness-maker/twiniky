@@ -273,8 +273,11 @@ export interface AvatarMeasurementsPayload {
   weight?: number | null;
   skin_tone?: string | null;
   avatar_glb_url?: string | null;
+  selfie_photo_url?: string | null;
   updated_at?: string;
 }
+
+const AVATAR_GENERATE_SKIP_FIELDS = new Set(["avatar_glb_url", "selfie_photo_url", "updated_at"]);
 
 export const avatarApi = {
   get: () => api.get<AvatarMeasurementsPayload>("/avatar/measurements"),
@@ -284,7 +287,7 @@ export const avatarApi = {
     const form = new FormData();
     form.append("photo", photo, photo.name || "selfie.jpg");
     Object.entries(measurements).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && key !== "avatar_glb_url" && key !== "updated_at") {
+      if (value !== null && value !== undefined && !AVATAR_GENERATE_SKIP_FIELDS.has(key)) {
         form.append(key, String(value));
       }
     });
@@ -293,6 +296,19 @@ export const avatarApi = {
       timeout: 150_000,
     });
   },
+};
+
+export interface VirtualTryOnResponse {
+  image_base64: string;
+}
+
+export const tryonApi = {
+  virtualTryOn: (productId: string) =>
+    api.post<VirtualTryOnResponse>(
+      "/tryon/virtual-tryon",
+      { product_id: productId },
+      { timeout: 90_000 }
+    ),
 };
 
 export function measurementsToApi(m: import("@/types").Measurements): AvatarMeasurementsPayload {

@@ -19,6 +19,29 @@ class ProductService:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Product not found")
         return product
 
+    async def reserve_stock(self, product_id: uuid.UUID, quantity: int) -> Product:
+        """Descuenta `quantity` del stock del producto, o rechaza con 400 si no alcanza.
+
+        FOR UPDATE bloquea la fila hasta el commit, así dos compras simultáneas no
+        pueden vender la misma última unidad. Si algo falla antes del commit, la
+        sesión hace rollback y el stock descontado vuelve a su valor original.
+        """
+        result = await self.db.execute(
+            select(Product).where(Product.id == product_id).with_for_update()
+        )
+        product = result.scalar_one_or_none()
+        if not product:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, detail=f"Producto {product_id} no encontrado"
+            )
+        if product.stock < quantity:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=f"Stock insuficiente: «{product.name}» (disponibles: {product.stock})",
+            )
+        product.stock -= quantity
+        return product
+
     async def list_products(
         self,
         category: str | None,
